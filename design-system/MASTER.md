@@ -4,9 +4,12 @@
 > override rules explicitly documented there. This file overrides generic tool
 > recommendations wherever the build brief supplies an exact value.
 
-**Project:** Kabisa Admin Panel  
-**Profile:** B2B pharmaceutical operations · analytics dashboard · data-dense executive UI  
-**Design reference:** Written Redseer admin description supplied in the build brief. The reference screenshot was not attached, so layout fidelity is based on the quantified written pattern and exact Kabisa tokens.  
+**Project:** Kabisa Admin Panel
+
+**Profile:** B2B pharmaceutical operations · analytics dashboard · data-dense executive UI
+
+**Design reference:** Written Redseer admin description supplied in the build brief. The reference screenshot was not attached, so layout fidelity is based on the quantified written pattern and exact Kabisa tokens.
+
 **Generated:** 2026-07-26
 
 ## Design direction

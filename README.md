@@ -47,9 +47,9 @@ corepack prepare pnpm@10.14.0 --activate
    uvicorn app.main:app --app-dir apps/api --reload
    ```
 
-   API docs: `http://localhost:8000/docs`  
-   Liveness: `http://localhost:8000/health`  
-   PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
+   - API docs: `http://localhost:8000/docs`
+   - Liveness: `http://localhost:8000/health`
+   - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
 
 4. Install and start the admin web.
 
@@ -84,4 +84,3 @@ The design source of truth is
 [`design-system/MASTER.md`](design-system/MASTER.md). The machine-readable
 profile is
 [`design-system/kabisa-admin.dna.json`](design-system/kabisa-admin.dna.json).
-
