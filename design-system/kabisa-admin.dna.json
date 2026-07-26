@@ -1,0 +1,422 @@
+{
+  "meta": {
+    "name": "Kabisa Admin",
+    "description": "A quantified Redseer-inspired operational admin interface, themed with exact Kabisa teal tokens.",
+    "source_references": [
+      "Kabisa Admin Panel Full Build Spec section 4",
+      "Written Redseer admin reference description; screenshot not attached",
+      "UI/UX Pro Max healthcare and data-dashboard guidance"
+    ],
+    "created_at": "2026-07-26"
+  },
+  "design_system": {
+    "color": {
+      "palette_type": "analogous teal with restrained semantic accents",
+      "primary": {
+        "hex": "#366F8A",
+        "role": "AA-compliant primary actions, active navigation, and emphasized controls"
+      },
+      "secondary": {
+        "hex": "#101619",
+        "role": "near-black sidebar anchor with a subtle teal undertone"
+      },
+      "accent": {
+        "hex": "#50A0C0",
+        "role": "logo-true accent, focus ring, links on dark, and charts"
+      },
+      "neutral": {
+        "scale": {
+          "0": "#FFFFFF",
+          "50": "#F9FAFA",
+          "100": "#F6F7F6",
+          "200": "#EFF1F2",
+          "300": "#E8EAE9",
+          "500": "#68747E",
+          "600": "#5A6672",
+          "900": "#14181A",
+          "950": "#101619"
+        },
+        "usage": "Warm near-white workspace, white cards, hairline borders, charcoal primary copy"
+      },
+      "semantic": {
+        "success": {
+          "background": "#E9F9F0",
+          "foreground": "#1E7A4D"
+        },
+        "warning": {
+          "background": "#FFF6E6",
+          "foreground": "#9A5C00"
+        },
+        "error": {
+          "background": "#FDECEA",
+          "foreground": "#C4382E"
+        },
+        "info": {
+          "background": "#E4F2F6",
+          "foreground": "#366F8A"
+        }
+      },
+      "surface": {
+        "background": "#F6F7F6",
+        "card": "#FFFFFF",
+        "elevated": "#FFFFFF"
+      },
+      "contrast_strategy": "Dark-on-light dominant with deep teal actions; true brand teal is reserved for accents because it is too light for small white button text"
+    },
+    "typography": {
+      "type_scale": {
+        "display": {
+          "size": "36px",
+          "weight": "600",
+          "line_height": "42px",
+          "tracking": "-0.025em"
+        },
+        "heading_1": {
+          "size": "32px",
+          "weight": "600",
+          "line_height": "38px",
+          "tracking": "-0.025em"
+        },
+        "heading_2": {
+          "size": "24px",
+          "weight": "600",
+          "line_height": "31px",
+          "tracking": "-0.018em"
+        },
+        "heading_3": {
+          "size": "18px",
+          "weight": "600",
+          "line_height": "26px",
+          "tracking": "-0.012em"
+        },
+        "body": {
+          "size": "14px",
+          "weight": "400",
+          "line_height": "22px",
+          "tracking": "0"
+        },
+        "body_small": {
+          "size": "13px",
+          "weight": "400",
+          "line_height": "19px",
+          "tracking": "0"
+        },
+        "caption": {
+          "size": "12px",
+          "weight": "500",
+          "line_height": "17px",
+          "tracking": "0.01em"
+        },
+        "overline": {
+          "size": "11px",
+          "weight": "700",
+          "line_height": "16px",
+          "tracking": "0.12em"
+        }
+      },
+      "font_families": {
+        "heading": "Fraunces, Georgia, serif",
+        "body": "Inter, ui-sans-serif, system-ui, sans-serif",
+        "mono": "JetBrains Mono, ui-monospace, monospace"
+      },
+      "font_style_notes": "Editorial, trustworthy Fraunces headings paired with neutral, high-legibility Inter operational UI and tabular monospaced codes"
+    },
+    "spacing": {
+      "base_unit": "4px",
+      "scale": [
+        "4px",
+        "8px",
+        "12px",
+        "16px",
+        "20px",
+        "24px",
+        "32px",
+        "40px",
+        "48px",
+        "64px"
+      ],
+      "content_density": "comfortable data-dense",
+      "section_rhythm": "24px between page regions, 16px within cards, 52–60px table rows"
+    },
+    "layout": {
+      "grid_system": "fixed 260px sidebar plus fluid twelve-column main workspace",
+      "max_content_width": "1600px",
+      "columns": "12",
+      "gutter": "24px desktop, 16px mobile",
+      "breakpoints": {
+        "mobile": "375px",
+        "tablet": "768px",
+        "desktop": "1024px",
+        "wide": "1440px"
+      },
+      "alignment_tendency": "strict grid with left-aligned content and right-aligned actions/numerics"
+    },
+    "shape": {
+      "border_radius": {
+        "small": "8px",
+        "medium": "10px",
+        "large": "14px",
+        "pill": "9999px"
+      },
+      "border_usage": "subtle 1px borders on cards, controls, tables, and outlined row actions",
+      "divider_style": "hairline #E8EAE9 with generous surrounding whitespace"
+    },
+    "elevation": {
+      "shadow_style": "very soft layered",
+      "levels": {
+        "low": "0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06)",
+        "medium": "0 12px 28px rgba(16,24,40,.10)",
+        "high": "0 24px 64px rgba(16,24,40,.16)"
+      },
+      "depth_cues": "borders first, soft shadows second, dark sidebar contrast as the primary anchor"
+    },
+    "iconography": {
+      "style": "simple outlined utility icons",
+      "stroke_weight": "1.75px",
+      "size_scale": [
+        "16px",
+        "18px",
+        "20px",
+        "24px"
+      ],
+      "preferred_set": "Lucide React"
+    },
+    "motion": {
+      "easing": "cubic-bezier(0.2, 0, 0, 1)",
+      "duration_scale": {
+        "micro": "120ms",
+        "normal": "220ms",
+        "macro": "320ms"
+      },
+      "entrance_pattern": "8–16px directional translate plus opacity with decelerating landing",
+      "exit_pattern": "shorter directional translate plus opacity with accelerating departure",
+      "philosophy": "minimal functional corporate/calm motion that confirms state and spatial relationships"
+    },
+    "components": {
+      "button_style": "10px-radius deep-teal primary buttons; white bordered secondary buttons; compact outlined pill row actions",
+      "input_style": "42px minimum height, visible label, pale surface, subtle border, and 3px true-teal focus halo",
+      "card_style": "white 14px-radius bordered surfaces with minimal layered shadow",
+      "navigation_pattern": "fixed near-black grouped sidebar with solid deep-teal active pill and pinned user profile",
+      "modal_style": "right-side drawer or centered dialog with focus trap, labelled close, soft high elevation, and restrained slide/fade",
+      "list_style": "serif page header, bordered filters, selection-aware bulk row, selectable data table, status pills, pagination",
+      "component_notes": "All actions use verbs; status includes text; numeric cells are tabular; empty and error language stays calm and direct"
+    }
+  },
+  "design_style": {
+    "aesthetic": {
+      "mood": [
+        "trustworthy",
+        "calm",
+        "precise",
+        "premium",
+        "operational"
+      ],
+      "visual_metaphor": "A well-organized pharmacy operations ledger inside a quiet executive workspace",
+      "era_influence": "contemporary 2026 enterprise software with restrained editorial typography",
+      "genre": "healthcare operations SaaS with executive analytics",
+      "personality_traits": [
+        "meticulous",
+        "dependable",
+        "confident",
+        "unshowy"
+      ],
+      "adjectives": [
+        "data-dense",
+        "editorial",
+        "clean",
+        "structured",
+        "teal-led"
+      ]
+    },
+    "visual_language": {
+      "complexity": "moderate operational density",
+      "ornamentation": "subtle accents only",
+      "whitespace_usage": "generous around page regions, efficient inside data components",
+      "visual_weight_distribution": "dark sidebar anchor balanced by light main workspace and compact teal actions",
+      "focal_strategy": "typographic hierarchy and isolated primary action",
+      "contrast_level": "high for navigation and text, moderate for borders and secondary surfaces",
+      "texture_usage": "none; flat warm surfaces and precise hairlines"
+    },
+    "composition": {
+      "hierarchy_method": "typographic scale, spatial isolation, and controlled teal color weight",
+      "balance_type": "asymmetric shell with a stable left anchor",
+      "flow_direction": "top-to-bottom page workflow and left-to-right table scanning",
+      "grouping_strategy": "proximity inside bordered regions with repeated list-page sequencing",
+      "negative_space_role": "separates decision zones and reduces cognitive load around dense tables"
+    },
+    "imagery": {
+      "photo_treatment": "small, natural product thumbnails on neutral white backgrounds only",
+      "illustration_style": "minimal line illustration reserved for empty states",
+      "graphic_elements": "status dots, thin dividers, tiny trend lines, and teal chart strokes",
+      "pattern_usage": "none",
+      "image_shape": "10–12px rounded rectangles or circles for avatars"
+    },
+    "interaction_feel": {
+      "feedback_style": "immediate, quiet, and explicit through labels, toasts, and status change",
+      "hover_behavior": "stable color, border, and shadow changes without layout shift",
+      "transition_personality": "snappy corporate glide",
+      "loading_style": "low-contrast skeletons; small verification Lottie is deferred to the verification workflow",
+      "microinteraction_density": "very low and limited to comprehension or confirmation"
+    },
+    "brand_voice_in_ui": {
+      "tone": "clear, reassuring, and operational",
+      "formality": "professional plain language",
+      "cta_style": "direct imperative verbs such as Create order, Apply filters, and Review customer",
+      "empty_state_approach": "state what is absent, why it matters, and the single next action",
+      "error_tone": "specific and calm, preserving user input and offering recovery"
+    }
+  },
+  "visual_effects": {
+    "overview": {
+      "effect_intensity": "subtle-accent",
+      "performance_tier": "lightweight",
+      "fallback_strategy": "disable spatial transforms and use short opacity feedback when prefers-reduced-motion is set",
+      "primary_technology": "CSS transitions plus Motion for component presence; Lottie only for a later small success state"
+    },
+    "background_effects": {
+      "type": "none",
+      "description": "Flat warm-neutral application background with no decorative animation",
+      "technology": "CSS background color",
+      "params": {
+        "color_palette": [
+          "#F6F7F6"
+        ],
+        "speed": "not applicable",
+        "density": "none",
+        "opacity": "1",
+        "blend_mode": "normal"
+      }
+    },
+    "particle_systems": {
+      "enabled": false,
+      "type": "none",
+      "description": "Particle systems are explicitly forbidden in the admin",
+      "technology": "none",
+      "params": {
+        "count": "0",
+        "shape": "none",
+        "size_range": "none",
+        "movement_pattern": "none",
+        "color_behavior": "none",
+        "interaction": "none",
+        "spawn_area": "none"
+      }
+    },
+    "3d_elements": {
+      "enabled": false,
+      "type": "none",
+      "description": "Three-dimensional elements are reserved for the customer storefront",
+      "technology": "none",
+      "params": {
+        "renderer": "none",
+        "lighting": "none",
+        "camera": "none",
+        "materials": "none",
+        "geometry": "none",
+        "post_processing": "none",
+        "interaction_model": "none"
+      }
+    },
+    "shader_effects": {
+      "enabled": false,
+      "type": "none",
+      "description": "Shader effects would conflict with operational clarity and performance goals",
+      "technology": "none",
+      "params": {
+        "uniforms": "none",
+        "vertex_manipulation": "none",
+        "fragment_output": "none",
+        "noise_type": "none",
+        "distortion": "none"
+      }
+    },
+    "scroll_effects": {
+      "parallax": {
+        "enabled": false,
+        "layers": "0",
+        "depth_range": "none",
+        "speed_curve": "none"
+      },
+      "scroll_triggered_animations": {
+        "enabled": false,
+        "trigger_points": "none",
+        "animation_type": "none",
+        "scrub_behavior": "none"
+      },
+      "scroll_morphing": {
+        "enabled": false,
+        "description": "No scroll morphing in the admin"
+      }
+    },
+    "text_effects": {
+      "type": "none",
+      "description": "Typography remains stable and readable",
+      "technology": "none",
+      "params": {
+        "split_strategy": "none",
+        "animation_per_unit": "none",
+        "stagger": "none",
+        "effect_style": "none"
+      }
+    },
+    "cursor_effects": {
+      "enabled": false,
+      "type": "none",
+      "description": "Use the platform cursor with pointer state on interactive elements",
+      "params": {
+        "shape": "system",
+        "size": "system",
+        "blend_mode": "normal",
+        "trail": "none",
+        "interaction_zone": "standard controls"
+      }
+    },
+    "image_effects": {
+      "type": "none",
+      "description": "Product and avatar images use stable crops without decorative distortion",
+      "technology": "CSS object-fit",
+      "params": {
+        "filter_pipeline": "none",
+        "hover_transform": "none",
+        "reveal_animation": "short opacity transition only when lazy-loaded",
+        "distortion_type": "none"
+      }
+    },
+    "glassmorphism_neumorphism": {
+      "enabled": false,
+      "style": "none",
+      "params": {
+        "blur_radius": "0px",
+        "transparency": "0",
+        "border_treatment": "solid 1px #E8EAE9",
+        "shadow_type": "soft layered",
+        "light_source_angle": "not applicable"
+      }
+    },
+    "canvas_drawings": {
+      "enabled": false,
+      "type": "none",
+      "description": "Charts in later phases use accessible SVG or DOM libraries with tabular alternatives",
+      "technology": "none",
+      "params": {
+        "draw_method": "none",
+        "animation_loop": "none",
+        "color_scheme": "Kabisa teal scale",
+        "responsiveness": "fluid container",
+        "interaction": "none"
+      }
+    },
+    "svg_animations": {
+      "enabled": false,
+      "type": "none",
+      "description": "Lucide SVG icons are static except for standard CSS state transitions",
+      "params": {
+        "animation_method": "none",
+        "path_morphing": "none",
+        "stroke_animation": "none",
+        "filter_effects": "none"
+      }
+    },
+    "composite_notes": "The admin deliberately disables decorative advanced effects. Motion is limited to focus shifts, drawers, row changes, KPI count feedback, toasts, and later a small verification-success Lottie. Every spatial animation has a reduced-motion opacity or static fallback."
+  }
+}
