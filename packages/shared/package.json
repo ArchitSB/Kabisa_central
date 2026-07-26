@@ -1,0 +1,19 @@
+{
+  "name": "@kabisa/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "format": "prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "~5.7.2"
+  }
+}

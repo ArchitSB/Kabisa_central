@@ -1,0 +1,15 @@
+{
+  "name": "kabisa",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @kabisa/admin-web dev",
+    "dev:web": "pnpm --filter @kabisa/admin-web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
+

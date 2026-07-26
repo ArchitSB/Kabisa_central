@@ -1,0 +1,22 @@
+{
+  "registry": "@smoothui",
+  "note": "SmoothUI is an official shadcn namespace and needs no components.json configuration. Inspect each registry item before cherry-picking.",
+  "allowed": [
+    "animated-input",
+    "copy-to-clipboard",
+    "rich-popover",
+    "smooth-tabs",
+    "expandable",
+    "number-flow"
+  ],
+  "forbidden": [
+    "siri-orb",
+    "dynamic-island",
+    "fluid-morph",
+    "matrix-card",
+    "cursor-follow",
+    "scramble-hover",
+    "wave-text",
+    "typewriter-text"
+  ]
+}
