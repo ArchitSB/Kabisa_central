@@ -3,9 +3,9 @@
 Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
 workspace for catalog, inventory, customers, orders, delivery, and payments.
 
-This repository currently contains **Phase 0 — Foundations**. The admin shell
-uses representative local preview data; authentication and live domain data
-begin in Phase 1 and later checkpoints.
+This repository contains the Phase 0 foundation and the first Phase 1
+authentication checkpoint. The admin shell still uses representative local
+preview data until the frontend auth checkpoints are complete.
 
 ## Requirements
 
@@ -51,7 +51,22 @@ corepack prepare pnpm@10.14.0 --activate
    - Liveness: `http://localhost:8000/health`
    - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
 
-4. Install and start the admin web.
+4. Configure and seed the Phase 1 administrator.
+
+   Set `JWT_SECRET_KEY` and replace the placeholder
+   `SUPER_ADMIN_PASSWORD` in `.env`, then run:
+
+   ```bash
+   python -m app.seed
+   ```
+
+   The seed refuses the documented placeholder or passwords shorter than 12
+   characters. It is safe to re-run: the five system roles, permission
+   catalogue, mappings, and configured super-admin are reconciled without
+   duplicates. Re-running with a changed `SUPER_ADMIN_PASSWORD` updates the
+   seeded administrator password.
+
+5. Install and start the admin web.
 
    ```bash
    pnpm install
