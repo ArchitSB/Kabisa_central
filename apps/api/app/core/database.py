@@ -17,7 +17,7 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.is_development,
+    echo=settings.db_echo,
     pool_pre_ping=True,
 )
 async_session_factory = async_sessionmaker(

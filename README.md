@@ -3,9 +3,10 @@
 Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
 workspace for catalog, inventory, customers, orders, delivery, and payments.
 
-This repository contains the Phase 0 foundation and the first Phase 1
-authentication checkpoint. The admin shell still uses representative local
-preview data until the frontend auth checkpoints are complete.
+This repository contains the Phase 0 foundation and Phase 1 authentication
+and role-based access control. The admin shell uses real administrator
+sessions and server-enforced permissions. Domain workflows still use
+representative preview data until their scheduled phases.
 
 ## Requirements
 
@@ -20,7 +21,7 @@ corepack enable
 corepack prepare pnpm@10.14.0 --activate
 ```
 
-## Start Phase 0
+## Start locally
 
 1. Create local configuration.
 
@@ -54,7 +55,8 @@ corepack prepare pnpm@10.14.0 --activate
 4. Configure and seed the Phase 1 administrator.
 
    Set `JWT_SECRET_KEY` and replace the placeholder
-   `SUPER_ADMIN_PASSWORD` in `.env`, then run:
+   `SUPER_ADMIN_PASSWORD` in `.env`. The configured
+   `SUPER_ADMIN_EMAIL` is the sole developer super-admin identity. Then run:
 
    ```bash
    python -m app.seed
@@ -73,7 +75,44 @@ corepack prepare pnpm@10.14.0 --activate
    pnpm dev:web
    ```
 
-   Admin preview: `http://localhost:5173`
+   Admin login: `http://localhost:5173/login`
+
+## Authentication and first login
+
+- Sign in with the `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` configured in
+  the local `.env`. Passwords are never committed, logged, or returned.
+- The developer super-admin can create operational administrators under
+  **Management → Admin users**, set an initial password, and assign a role.
+- Every account that can sign in is an `admin_users` record. Customer
+  authentication is separate and is not accepted by these endpoints.
+- Inactive or soft-deleted administrators cannot sign in, and an existing
+  access token is rejected after deactivation.
+- The developer-only **Viewing as** switcher previews the five seeded system
+  roles in the browser. It only reduces the effective UI permission set; API
+  authorization always uses the signed-in user. Set
+  `VITE_ENABLE_ROLE_SWITCHER=false` outside developer environments.
+- Access tokens expire after 30 minutes by default. The web client performs one
+  transparent refresh with the seven-day refresh token, then returns to
+  `/login` if the session cannot be restored.
+- SQL statement logging is disabled by default. Enable `DB_ECHO` only for
+  focused local database debugging.
+
+The Phase 1 API is under `/api/v1`:
+
+```text
+POST /auth/login
+POST /auth/refresh
+GET  /auth/me
+POST /auth/logout
+GET|POST /admin-users
+GET|PATCH|DELETE /admin-users/{user_id}
+GET|POST /roles
+GET|PATCH|DELETE /roles/{role_id}
+GET /roles/permissions
+```
+
+All non-authentication management routes independently enforce their required
+permission. Expected API errors use `{ "detail": "...", "code": "..." }`.
 
 ## Quality commands
 
@@ -85,6 +124,9 @@ ruff check apps/api
 black --check apps/api
 pytest apps/api/tests
 ```
+
+Backend tests use the isolated database configured by `TEST_DATABASE_URL` and
+never drop application tables from `DATABASE_URL`.
 
 ## Repository map
 
