@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-MIN_PASSWORD_LENGTH = 12
+MIN_PASSWORD_LENGTH = 8
 MAX_BCRYPT_PASSWORD_BYTES = 72
 TokenType = Literal["access", "refresh"]
 
@@ -86,7 +86,16 @@ def decode_token(token: str, *, expected_type: TokenType | None = None) -> dict[
         token,
         settings.jwt_secret_key,
         algorithms=[settings.jwt_algorithm],
+        options={
+            "require_sub": True,
+            "require_iat": True,
+            "require_exp": True,
+        },
     )
+    if not isinstance(claims.get("sub"), str) or not claims["sub"]:
+        raise ValueError("Token subject is missing.")
+    if not isinstance(claims.get("role"), str) or not claims["role"]:
+        raise ValueError("Token role is missing.")
     if expected_type is not None and claims.get("type") != expected_type:
         raise ValueError(f"Expected a {expected_type} token.")
     return claims

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import delete, select
@@ -29,6 +30,7 @@ class SeedResult:
     role_permissions: int
     super_admin_created: bool
     super_admin_password_updated: bool
+    other_super_admins_retired: int
 
 
 def _normalized_super_admin_email() -> str:
@@ -189,6 +191,28 @@ async def _reconcile_super_admin(
     return False, password_updated
 
 
+async def _retire_other_super_admins(
+    session: AsyncSession,
+    *,
+    role: Role,
+    configured_email: str,
+) -> int:
+    other_super_admins = (
+        await session.scalars(
+            select(AdminUser).where(
+                AdminUser.role_id == role.id,
+                AdminUser.email != configured_email,
+                AdminUser.deleted_at.is_(None),
+            )
+        )
+    ).all()
+    for user in other_super_admins:
+        user.is_active = False
+        user.deleted_at = datetime.now(UTC)
+    await session.flush()
+    return len(other_super_admins)
+
+
 async def seed_auth_rbac() -> SeedResult:
     validate_catalogue()
     name, email, password = _validated_super_admin_config()
@@ -208,6 +232,11 @@ async def seed_auth_rbac() -> SeedResult:
             email=email,
             password=password,
         )
+        retired_count = await _retire_other_super_admins(
+            session,
+            role=roles["super_admin"],
+            configured_email=email,
+        )
 
     return SeedResult(
         roles=len(roles),
@@ -215,4 +244,5 @@ async def seed_auth_rbac() -> SeedResult:
         role_permissions=mapping_count,
         super_admin_created=admin_created,
         super_admin_password_updated=password_updated,
+        other_super_admins_retired=retired_count,
     )

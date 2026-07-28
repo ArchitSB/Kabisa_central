@@ -60,7 +60,7 @@ corepack prepare pnpm@10.14.0 --activate
    python -m app.seed
    ```
 
-   The seed refuses the documented placeholder or passwords shorter than 12
+   The seed refuses the documented placeholder or passwords shorter than 8
    characters. It is safe to re-run: the five system roles, permission
    catalogue, mappings, and configured super-admin are reconciled without
    duplicates. Re-running with a changed `SUPER_ADMIN_PASSWORD` updates the

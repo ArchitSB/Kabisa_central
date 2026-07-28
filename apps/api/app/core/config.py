@@ -19,14 +19,15 @@ class Settings(BaseSettings):
     api_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
     database_url: str = "postgresql+asyncpg://kabisa:kabisa_local@localhost:5432/kabisa"
+    test_database_url: str = "postgresql+asyncpg://kabisa:kabisa_local@localhost:5432/kabisa_test"
 
     jwt_secret_key: str = "development-only-change-me"
     jwt_algorithm: str = "HS256"
     jwt_access_token_minutes: int = 30
     jwt_refresh_token_days: int = 7
 
-    super_admin_name: str = "Kabisa Administrator"
-    super_admin_email: str = "admin@kabisa.co.tz"
+    super_admin_name: str = "Kabisa Developer"
+    super_admin_email: str = "arsiba999@gmail.com"
     super_admin_password: str = "replace-before-seeding"
 
     @property

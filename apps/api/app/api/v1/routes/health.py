@@ -1,12 +1,13 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
+from app.core.errors import AppError
 
 router = APIRouter()
 
@@ -23,12 +24,10 @@ async def readiness(
     try:
         await session.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
-        raise HTTPException(
+        raise AppError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "message": "The database is not ready.",
-                "code": "database_unavailable",
-            },
+            detail="The database is not ready.",
+            code="database_unavailable",
         ) from exc
 
     return ReadinessResponse(status="ready", database="connected")

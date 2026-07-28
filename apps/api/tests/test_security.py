@@ -22,7 +22,7 @@ def test_password_hash_round_trip() -> None:
 
 def test_password_policy_rejects_short_and_overlong_values() -> None:
     with pytest.raises(ValueError, match=str(MIN_PASSWORD_LENGTH)):
-        hash_password("too-short")
+        hash_password("short")
 
     password_hash = hash_password("a" * MAX_BCRYPT_PASSWORD_BYTES)
     with pytest.raises(ValueError, match=str(MAX_BCRYPT_PASSWORD_BYTES)):

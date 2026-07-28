@@ -18,7 +18,8 @@ async def main() -> None:
         f"permissions={result.permissions}, "
         f"role_permissions={result.role_permissions}, "
         f"super_admin={super_admin_status}, "
-        f"password={password_status}."
+        f"password={password_status}, "
+        f"other_super_admins_retired={result.other_super_admins_retired}."
     )
 
 
