@@ -2,7 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { authClient } from "@/features/auth/auth-client";
-import type { AccessTokenResponse, AuthUser, LoginResponse } from "@/features/auth/types";
+import type {
+  AccessTokenResponse,
+  AuthUser,
+  LoginResponse,
+  RoleWithPermissions,
+} from "@/features/auth/types";
 
 type AuthStatus = "checking" | "authenticated" | "anonymous";
 
@@ -10,11 +15,13 @@ type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
   user: AuthUser | null;
+  previewRole: RoleWithPermissions | null;
   status: AuthStatus;
   login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   bootstrap: () => Promise<void>;
   setAccessToken: (accessToken: string) => void;
+  setPreviewRole: (role: RoleWithPermissions | null) => void;
   clearSession: () => void;
   hasPermission: (code: string) => boolean;
 };
@@ -28,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       user: null,
+      previewRole: null,
       status: "checking",
 
       login: async (email, password) => {
@@ -39,6 +47,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken: response.data.access_token,
           refreshToken: response.data.refresh_token,
           user: response.data.user,
+          previewRole: null,
           status: "authenticated",
         });
         return response.data.user;
@@ -116,16 +125,24 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setAccessToken: (accessToken) => set({ accessToken }),
+      setPreviewRole: (previewRole) => set({ previewRole }),
 
       clearSession: () =>
         set({
           accessToken: null,
           refreshToken: null,
           user: null,
+          previewRole: null,
           status: "anonymous",
         }),
 
-      hasPermission: (code) => Boolean(get().user?.permissions.includes(code)),
+      hasPermission: (code) => {
+        const { previewRole, user } = get();
+        const permissions = previewRole
+          ? previewRole.permissions.map((permission) => permission.code)
+          : user?.permissions;
+        return Boolean(permissions?.includes(code));
+      },
     }),
     {
       name: "kabisa-admin-auth",
@@ -136,6 +153,15 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+export function useHasPermission(code: string): boolean {
+  return useAuthStore((state) => {
+    const permissions = state.previewRole
+      ? state.previewRole.permissions.map((permission) => permission.code)
+      : state.user?.permissions;
+    return Boolean(permissions?.includes(code));
+  });
+}
 
 export function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) {

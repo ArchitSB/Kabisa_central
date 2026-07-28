@@ -5,7 +5,7 @@ export const copy = {
     section: "ADMIN",
   },
   topbar: {
-    preview: "Phase 0 preview",
+    preview: "Secure workspace",
     roleLabel: "Dev · Viewing as",
     menu: "Open navigation",
   },

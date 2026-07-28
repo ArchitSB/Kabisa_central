@@ -1,9 +1,9 @@
+import { useState } from "react";
 import {
   BadgePercent,
   Boxes,
   ChartNoAxesCombined,
   ChevronRight,
-  CircleUserRound,
   ClipboardList,
   ContactRound,
   LayoutDashboard,
@@ -14,18 +14,21 @@ import {
   Store,
   Tags,
   Truck,
+  UserRoundCog,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
+import { useAuthStore } from "@/features/auth/auth-store";
 import { copy } from "@/lib/copy";
-import { cn } from "@/lib/utils";
+import { cn, formatRoleName, getInitials } from "@/lib/utils";
 
 type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  permission?: string;
 };
 
 const navigation: Array<{ label: string; items: NavItem[] }> = [
@@ -36,22 +39,53 @@ const navigation: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Operations",
     items: [
-      { label: "Orders", href: "/orders", icon: ClipboardList },
-      { label: "Products", href: "/products", icon: PackageSearch },
-      { label: "Inventory", href: "/inventory", icon: Boxes },
-      { label: "Customers", href: "/customers", icon: Store },
-      { label: "Delivery agents", href: "/delivery-agents", icon: Truck },
+      { label: "Orders", href: "/orders", icon: ClipboardList, permission: "orders.view" },
+      {
+        label: "Products",
+        href: "/products",
+        icon: PackageSearch,
+        permission: "products.view",
+      },
+      { label: "Inventory", href: "/inventory", icon: Boxes, permission: "inventory.view" },
+      { label: "Customers", href: "/customers", icon: Store, permission: "customers.view" },
+      {
+        label: "Delivery agents",
+        href: "/delivery-agents",
+        icon: Truck,
+        permission: "delivery_agents.view",
+      },
     ],
   },
   {
     label: "Management",
     items: [
-      { label: "Categories", href: "/categories", icon: Tags },
-      { label: "Brands", href: "/brands", icon: ContactRound },
-      { label: "Coupons", href: "/coupons", icon: BadgePercent },
-      { label: "Reports", href: "/reports", icon: ChartNoAxesCombined },
-      { label: "Roles", href: "/roles", icon: ShieldCheck },
-      { label: "Settings", href: "/settings", icon: Settings },
+      {
+        label: "Categories",
+        href: "/categories",
+        icon: Tags,
+        permission: "categories.view",
+      },
+      { label: "Brands", href: "/brands", icon: ContactRound, permission: "brands.view" },
+      {
+        label: "Coupons",
+        href: "/coupons",
+        icon: BadgePercent,
+        permission: "coupons.view",
+      },
+      {
+        label: "Reports",
+        href: "/reports",
+        icon: ChartNoAxesCombined,
+        permission: "reports.view",
+      },
+      {
+        label: "Admin users",
+        href: "/admin-users",
+        icon: UserRoundCog,
+        permission: "admin_users.view",
+      },
+      { label: "Roles", href: "/roles", icon: ShieldCheck, permission: "roles.view" },
+      { label: "Settings", href: "/settings", icon: Settings, permission: "settings.view" },
     ],
   },
 ];
@@ -62,6 +96,27 @@ type SidebarProps = {
 };
 
 export function Sidebar({ mobile = false, onClose }: SidebarProps) {
+  const [loggingOut, setLoggingOut] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const previewRole = useAuthStore((state) => state.previewRole);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const logout = useAuthStore((state) => state.logout);
+  const visibleNavigation = navigation
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.permission || hasPermission(item.permission),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+  const effectiveRoleName = previewRole?.name ?? user?.role.name ?? "";
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await logout();
+    onClose?.();
+  }
+
   return (
     <aside
       className={cn(
@@ -102,7 +157,7 @@ export function Sidebar({ mobile = false, onClose }: SidebarProps) {
           {copy.brand.section}
         </p>
         <div className="space-y-5">
-          {navigation.map((section) => (
+          {visibleNavigation.map((section) => (
             <div key={section.label}>
               <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-muted/75">
                 {section.label}
@@ -156,22 +211,22 @@ export function Sidebar({ mobile = false, onClose }: SidebarProps) {
       <div className="shrink-0 border-t border-white/[0.07] p-3">
         <div className="flex items-center gap-3 rounded-[12px] bg-white/[0.035] p-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/15 text-primary-400">
-            <CircleUserRound aria-hidden="true" className="size-5" />
+            <span className="text-xs font-bold">{getInitials(user?.name ?? "")}</span>
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-sidebar-foreground">
-              Neema Mushi
+              {user?.name}
             </span>
             <span className="block truncate text-[11px] text-sidebar-muted">
-              Super admin
+              {formatRoleName(effectiveRoleName)}
             </span>
           </span>
           <button
             type="button"
             aria-label="Log out"
-            title="Authentication begins in Phase 1"
             className="flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-white/[0.07] hover:text-white"
-            disabled
+            disabled={loggingOut}
+            onClick={handleLogout}
           >
             <LogOut aria-hidden="true" className="size-4" />
           </button>

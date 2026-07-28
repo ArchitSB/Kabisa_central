@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useHasPermission } from "@/features/auth/auth-store";
 import { previewOrders } from "@/features/orders/orders.data";
 import { copy } from "@/lib/copy";
 import { cn, formatCompact, formatMoney } from "@/lib/utils";
@@ -116,6 +117,10 @@ const salesPoints = [28, 42, 37, 56, 51, 72, 66, 86, 79, 98, 92, 112];
 
 export function DashboardPage() {
   const prefersReducedMotion = useReducedMotion();
+  const canExportReports = useHasPermission("reports.export");
+  const canCreateOrders = useHasPermission("orders.create");
+  const canViewInventory = useHasPermission("inventory.view");
+  const canViewOrders = useHasPermission("orders.view");
 
   return (
     <div className="space-y-6">
@@ -124,20 +129,26 @@ export function DashboardPage() {
         title={copy.dashboard.title}
         subtitle={copy.dashboard.subtitle}
         actions={
-          <>
-            <Button variant="secondary">
-              <Download aria-hidden="true" />
-              {copy.dashboard.actions.report}
-            </Button>
-            <EntityDrawer
-              trigger={
-                <Button>
-                  <Plus aria-hidden="true" />
-                  {copy.dashboard.actions.order}
+          canExportReports || canCreateOrders ? (
+            <>
+              {canExportReports ? (
+                <Button variant="secondary">
+                  <Download aria-hidden="true" />
+                  {copy.dashboard.actions.report}
                 </Button>
-              }
-            />
-          </>
+              ) : null}
+              {canCreateOrders ? (
+                <EntityDrawer
+                  trigger={
+                    <Button>
+                      <Plus aria-hidden="true" />
+                      {copy.dashboard.actions.order}
+                    </Button>
+                  }
+                />
+              ) : null}
+            </>
+          ) : null
         }
       />
 
@@ -282,118 +293,125 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="surface-card overflow-hidden" aria-labelledby="watchlist-title">
-          <div className="border-b border-border px-5 py-5">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-control bg-warning-surface text-warning">
-                <AlertTriangle aria-hidden="true" className="size-[18px]" />
-              </span>
-              <div>
-                <h2
-                  id="watchlist-title"
-                  className="font-display text-xl font-semibold tracking-tight text-foreground"
-                >
-                  {copy.dashboard.watchlistTitle}
-                </h2>
-                <p className="mt-0.5 text-xs text-secondary">
-                  {copy.dashboard.watchlistSubtitle}
-                </p>
+        {canViewInventory ? (
+          <section
+            className="surface-card overflow-hidden"
+            aria-labelledby="watchlist-title"
+          >
+            <div className="border-b border-border px-5 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 items-center justify-center rounded-control bg-warning-surface text-warning">
+                  <AlertTriangle aria-hidden="true" className="size-[18px]" />
+                </span>
+                <div>
+                  <h2
+                    id="watchlist-title"
+                    className="font-display text-xl font-semibold tracking-tight text-foreground"
+                  >
+                    {copy.dashboard.watchlistTitle}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-secondary">
+                    {copy.dashboard.watchlistSubtitle}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="divide-y divide-border">
-            {stockAlerts.map((item) => (
-              <button
-                key={item.name}
-                type="button"
-                className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors duration-micro hover:bg-[var(--row-hover)]"
-              >
-                <span className="size-2 shrink-0 rounded-full bg-warning" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-foreground">
-                    {item.name}
+            <div className="divide-y divide-border">
+              {stockAlerts.map((item) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors duration-micro hover:bg-[var(--row-hover)]"
+                >
+                  <span className="size-2 shrink-0 rounded-full bg-warning" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">
+                      {item.name}
+                    </span>
+                    <span className="numeric mt-0.5 block truncate text-[11px] text-secondary">
+                      {item.detail}
+                    </span>
                   </span>
-                  <span className="numeric mt-0.5 block truncate text-[11px] text-secondary">
-                    {item.detail}
-                  </span>
-                </span>
-                <StatusBadge label={item.status} tone={item.tone} />
-              </button>
-            ))}
-          </div>
-          <div className="border-t border-border bg-[#FBFCFB] px-5 py-3">
-            <Button variant="ghost" size="sm" className="-ml-3">
-              View inventory
-            </Button>
-          </div>
-        </section>
+                  <StatusBadge label={item.status} tone={item.tone} />
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-border bg-[#FBFCFB] px-5 py-3">
+              <Button variant="ghost" size="sm" className="-ml-3">
+                View inventory
+              </Button>
+            </div>
+          </section>
+        ) : null}
       </div>
 
-      <section
-        className="surface-card overflow-hidden"
-        aria-labelledby="recent-orders-title"
-      >
-        <div className="flex flex-col gap-3 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2
-              id="recent-orders-title"
-              className="font-display text-xl font-semibold tracking-tight text-foreground"
-            >
-              {copy.dashboard.recentTitle}
-            </h2>
-            <p className="mt-1 text-xs text-secondary">{copy.dashboard.recentSubtitle}</p>
+      {canViewOrders ? (
+        <section
+          className="surface-card overflow-hidden"
+          aria-labelledby="recent-orders-title"
+        >
+          <div className="flex flex-col gap-3 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2
+                id="recent-orders-title"
+                className="font-display text-xl font-semibold tracking-tight text-foreground"
+              >
+                {copy.dashboard.recentTitle}
+              </h2>
+              <p className="mt-1 text-xs text-secondary">{copy.dashboard.recentSubtitle}</p>
+            </div>
+            <Button asChild variant="secondary" size="sm">
+              <a href="/orders">View all orders</a>
+            </Button>
           </div>
-          <Button asChild variant="secondary" size="sm">
-            <a href="/orders">View all orders</a>
-          </Button>
-        </div>
-        <div className="scrollbar-subtle overflow-x-auto">
-          <table className="w-full min-w-[720px]" aria-label="Recent order preview">
-            <thead className="bg-[#FBFCFB]">
-              <tr className="border-b border-border">
-                {["Order", "Customer", "Location", "Total", "Status"].map((label) => (
-                  <th
-                    key={label}
-                    className="h-11 px-5 text-left text-[10px] font-bold uppercase tracking-[0.09em] text-secondary"
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {previewOrders.slice(0, 4).map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-border transition-colors duration-micro last:border-0 hover:bg-[var(--row-hover)]"
-                >
-                  <td className="h-14 px-5 font-mono text-xs font-semibold text-primary-700">
-                    {order.orderNumber}
-                  </td>
-                  <td className="px-5 text-sm font-semibold">{order.customer}</td>
-                  <td className="px-5 text-sm text-secondary">{order.location}</td>
-                  <td className="numeric px-5 text-sm font-semibold">
-                    {formatMoney(order.total, "TZS")}
-                  </td>
-                  <td className="px-5">
-                    <StatusBadge
-                      label={order.status.replaceAll("_", " ").toLowerCase()}
-                      tone={
-                        order.status === "DELIVERED"
-                          ? "success"
-                          : order.status === "FAILED"
-                            ? "danger"
-                            : "warning"
-                      }
-                      className="capitalize"
-                    />
-                  </td>
+          <div className="scrollbar-subtle overflow-x-auto">
+            <table className="w-full min-w-[720px]" aria-label="Recent order preview">
+              <thead className="bg-[#FBFCFB]">
+                <tr className="border-b border-border">
+                  {["Order", "Customer", "Location", "Total", "Status"].map((label) => (
+                    <th
+                      key={label}
+                      className="h-11 px-5 text-left text-[10px] font-bold uppercase tracking-[0.09em] text-secondary"
+                    >
+                      {label}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {previewOrders.slice(0, 4).map((order) => (
+                  <tr
+                    key={order.id}
+                    className="border-b border-border transition-colors duration-micro last:border-0 hover:bg-[var(--row-hover)]"
+                  >
+                    <td className="h-14 px-5 font-mono text-xs font-semibold text-primary-700">
+                      {order.orderNumber}
+                    </td>
+                    <td className="px-5 text-sm font-semibold">{order.customer}</td>
+                    <td className="px-5 text-sm text-secondary">{order.location}</td>
+                    <td className="numeric px-5 text-sm font-semibold">
+                      {formatMoney(order.total, "TZS")}
+                    </td>
+                    <td className="px-5">
+                      <StatusBadge
+                        label={order.status.replaceAll("_", " ").toLowerCase()}
+                        tone={
+                          order.status === "DELIVERED"
+                            ? "success"
+                            : order.status === "FAILED"
+                              ? "danger"
+                              : "warning"
+                        }
+                        className="capitalize"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

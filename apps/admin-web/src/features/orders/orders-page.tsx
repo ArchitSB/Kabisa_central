@@ -8,6 +8,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { useHasPermission } from "@/features/auth/auth-store";
 import { getOrderColumns } from "@/features/orders/order-columns";
 import {
   type OrderStatus,
@@ -35,6 +36,7 @@ const statusTabs: StatusFilter[] = ["ALL", ...orderStatusOptions];
 
 export function OrdersPage() {
   const currency = "TZS";
+  const canCreateOrders = useHasPermission("orders.create");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [payment, setPayment] = useState<PaymentFilter>("ALL");
@@ -75,14 +77,16 @@ export function OrdersPage() {
         title={copy.orders.title}
         subtitle={copy.orders.subtitle}
         actions={
-          <EntityDrawer
-            trigger={
-              <Button>
-                <Plus aria-hidden="true" />
-                {copy.orders.create}
-              </Button>
-            }
-          />
+          canCreateOrders ? (
+            <EntityDrawer
+              trigger={
+                <Button>
+                  <Plus aria-hidden="true" />
+                  {copy.orders.create}
+                </Button>
+              }
+            />
+          ) : null
         }
       />
 

@@ -5,13 +5,16 @@ import { Outlet, useLocation } from "react-router-dom";
 
 import { RoleSwitcher } from "@/components/ui/role-switcher";
 import { Sidebar } from "@/components/ui/sidebar";
+import { useAuthStore } from "@/features/auth/auth-store";
 import { copy } from "@/lib/copy";
 import { useUiStore } from "@/lib/ui-store";
+import { getInitials } from "@/lib/utils";
 
 export function AppLayout() {
   const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
-  const { mobileNavOpen, previewRole, setMobileNavOpen, setPreviewRole } = useUiStore();
+  const user = useAuthStore((state) => state.user);
+  const { mobileNavOpen, setMobileNavOpen } = useUiStore();
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -88,7 +91,7 @@ export function AppLayout() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <RoleSwitcher role={previewRole} onRoleChange={setPreviewRole} />
+            <RoleSwitcher />
             <button
               type="button"
               aria-label="Notifications"
@@ -97,13 +100,12 @@ export function AppLayout() {
               <Bell aria-hidden="true" className="size-[18px]" />
               <span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-danger" />
             </button>
-            <button
-              type="button"
-              aria-label="Open profile menu"
+            <div
+              aria-label={`${user?.name ?? "User"} profile`}
               className="flex size-10 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white shadow-sm transition-colors duration-standard hover:bg-primary-800"
             >
-              NM
-            </button>
+              {getInitials(user?.name ?? "")}
+            </div>
           </div>
         </header>
 

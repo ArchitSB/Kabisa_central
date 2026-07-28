@@ -20,3 +20,19 @@ export function formatCompact(value: number): string {
     maximumFractionDigits: 1,
   }).format(value);
 }
+
+export function formatRoleName(value: string): string {
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const lastInitial = parts[parts.length - 1]?.[0] ?? "";
+  const initials =
+    parts.length > 1 ? `${parts[0][0]}${lastInitial}` : (parts[0]?.slice(0, 2) ?? "");
+  return initials.toUpperCase().slice(0, 2);
+}
