@@ -2,6 +2,7 @@ from asyncio import run
 from logging.config import fileConfig
 
 from alembic import context
+from app import models  # noqa: F401
 from app.core.config import settings
 from app.core.database import Base
 from sqlalchemy import pool

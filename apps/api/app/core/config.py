@@ -1,6 +1,7 @@
 from functools import lru_cache
+from typing import Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,9 +25,28 @@ class Settings(BaseSettings):
     jwt_access_token_minutes: int = 30
     jwt_refresh_token_days: int = 7
 
+    super_admin_name: str = "Kabisa Administrator"
+    super_admin_email: str = "admin@kabisa.co.tz"
+    super_admin_password: str = "replace-before-seeding"
+
     @property
     def is_development(self) -> bool:
         return self.api_env.lower() == "development"
+
+    @model_validator(mode="after")
+    def reject_unsafe_jwt_secret_outside_development(self) -> Self:
+        unsafe_secrets = {
+            "development-only-change-me",
+            "replace-with-a-long-random-value",
+        }
+        if not self.is_development and (
+            self.jwt_secret_key in unsafe_secrets or len(self.jwt_secret_key) < 32
+        ):
+            raise ValueError(
+                "JWT_SECRET_KEY must be a non-placeholder value of at least "
+                "32 characters outside development."
+            )
+        return self
 
 
 @lru_cache
