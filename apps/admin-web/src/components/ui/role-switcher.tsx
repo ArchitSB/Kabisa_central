@@ -2,8 +2,7 @@ import { ChevronDown, FlaskConical } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/auth-store";
-import type { RoleListResponse } from "@/features/auth/types";
-import { apiClient } from "@/lib/api-client";
+import { listRoles } from "@/features/roles/roles-api";
 import { formatRoleName } from "@/lib/utils";
 
 const roleSwitcherEnabled = import.meta.env.VITE_ENABLE_ROLE_SWITCHER !== "false";
@@ -13,13 +12,8 @@ export function RoleSwitcher() {
   const previewRole = useAuthStore((state) => state.previewRole);
   const setPreviewRole = useAuthStore((state) => state.setPreviewRole);
   const { data } = useQuery({
-    queryKey: ["roles", "developer-preview"],
-    queryFn: async () => {
-      const response = await apiClient.get<RoleListResponse>("/roles", {
-        params: { page: 1, page_size: 100, sort: "name" },
-      });
-      return response.data;
-    },
+    queryKey: ["roles"],
+    queryFn: listRoles,
     enabled: roleSwitcherEnabled && user?.role.name === "super_admin",
     staleTime: 5 * 60 * 1000,
   });

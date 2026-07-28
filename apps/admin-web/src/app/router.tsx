@@ -13,8 +13,6 @@ const permissionRoutes = [
   ["/brands", "brands.view"],
   ["/coupons", "coupons.view"],
   ["/reports", "reports.view"],
-  ["/admin-users", "admin_users.view"],
-  ["/roles", "roles.view"],
   ["/settings", "settings.view"],
 ] as const;
 
@@ -47,6 +45,31 @@ export const router = createBrowserRouter([
                 lazy: async () => {
                   const { OrdersPage } = await import("@/features/orders/orders-page");
                   return { Component: OrdersPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="admin_users.view" />,
+            children: [
+              {
+                path: "/admin-users",
+                lazy: async () => {
+                  const { AdminUsersPage } =
+                    await import("@/features/admin-users/admin-users-page");
+                  return { Component: AdminUsersPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="roles.view" />,
+            children: [
+              {
+                path: "/roles",
+                lazy: async () => {
+                  const { RolesPage } = await import("@/features/roles/roles-page");
+                  return { Component: RolesPage };
                 },
               },
             ],

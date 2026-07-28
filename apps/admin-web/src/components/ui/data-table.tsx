@@ -31,6 +31,7 @@ type DataTableProps<TData> = {
   ariaLabel: string;
   getRowId?: (row: TData) => string;
   pageSize?: number;
+  selectable?: boolean;
   onSelectionChange?: (selectedRows: TData[]) => void;
 };
 
@@ -40,6 +41,7 @@ export function DataTable<TData>({
   ariaLabel,
   getRowId,
   pageSize = 6,
+  selectable = true,
   onSelectionChange,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -76,12 +78,12 @@ export function DataTable<TData>({
 
   const table = useReactTable({
     data,
-    columns: [selectionColumn, ...columns],
+    columns: selectable ? [selectionColumn, ...columns] : columns,
     state: {
       sorting,
       rowSelection,
     },
-    enableRowSelection: true,
+    enableRowSelection: selectable,
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
