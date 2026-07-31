@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from fastapi import status
@@ -5,9 +7,118 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
-from app.models import AdminUser, PriceTier, ProductPrice
+from app.models import AdminUser, PriceTier, Product, ProductPrice
 from app.schemas.catalog import ProductPriceRead, ProductPricesUpsert
+from app.schemas.order import OrderLineCreate
 from app.services.catalog_service import get_product_record
+
+MONEY = Decimal("0.01")
+
+
+def money(value: Decimal) -> Decimal:
+    return value.quantize(MONEY, rounding=ROUND_HALF_UP)
+
+
+@dataclass(frozen=True)
+class PricedLine:
+    product: Product
+    quantity: int
+    unit_price: Decimal
+    line_discount: Decimal
+    line_total: Decimal
+
+
+@dataclass(frozen=True)
+class OrderTotals:
+    lines: list[PricedLine]
+    subtotal: Decimal
+    discount_total: Decimal
+    tax_total: Decimal
+    total: Decimal
+
+
+async def price_order(
+    session: AsyncSession,
+    *,
+    price_tier_id: UUID,
+    lines: list[OrderLineCreate],
+    discount_total: Decimal,
+    tax_total: Decimal,
+) -> OrderTotals:
+    product_ids = {line.product_id for line in lines}
+    products = {
+        product.id: product
+        for product in (
+            await session.scalars(
+                select(Product).where(
+                    Product.id.in_(product_ids),
+                    Product.deleted_at.is_(None),
+                    Product.is_active.is_(True),
+                )
+            )
+        ).all()
+    }
+    prices = {
+        price.product_id: price
+        for price in (
+            await session.scalars(
+                select(ProductPrice).where(
+                    ProductPrice.product_id.in_(product_ids),
+                    ProductPrice.price_tier_id == price_tier_id,
+                )
+            )
+        ).all()
+    }
+    priced: list[PricedLine] = []
+    for line in lines:
+        product = products.get(line.product_id)
+        if product is None:
+            raise AppError(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Product {line.product_id} is unavailable.",
+                code="order_product_unavailable",
+            )
+        price = prices.get(line.product_id)
+        if price is None:
+            raise AppError(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"{product.name} has no price for the customer's tier.",
+                code="order_price_missing",
+            )
+        unit_price = money(price.price)
+        line_discount = money(line.line_discount)
+        gross = money(unit_price * line.quantity)
+        if line_discount > gross:
+            raise AppError(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"The line discount for {product.name} exceeds its gross value.",
+                code="invalid_line_discount",
+            )
+        priced.append(
+            PricedLine(
+                product=product,
+                quantity=line.quantity,
+                unit_price=unit_price,
+                line_discount=line_discount,
+                line_total=money(gross - line_discount),
+            )
+        )
+    subtotal = money(sum((line.line_total for line in priced), Decimal("0")))
+    order_discount = money(discount_total)
+    tax = money(tax_total)
+    if order_discount > subtotal:
+        raise AppError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The order discount cannot exceed the subtotal.",
+            code="invalid_order_discount",
+        )
+    return OrderTotals(
+        lines=priced,
+        subtotal=subtotal,
+        discount_total=order_discount,
+        tax_total=tax,
+        total=money(subtotal - order_discount + tax),
+    )
 
 
 async def upsert_product_prices(
