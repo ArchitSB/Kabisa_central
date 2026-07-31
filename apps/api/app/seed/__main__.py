@@ -6,6 +6,7 @@ from app.seed import (
     seed_auth_rbac,
     seed_catalog_inventory,
     seed_customers,
+    seed_orders,
 )
 
 
@@ -14,6 +15,7 @@ async def main() -> None:
         auth_result = await seed_auth_rbac()
         catalog_result = await seed_catalog_inventory()
         customer_result = await seed_customers()
+        order_result = await seed_orders()
     finally:
         await engine.dispose()
 
@@ -47,6 +49,15 @@ async def main() -> None:
         f"addresses={customer_result.addresses}, "
         f"feedback={customer_result.feedback}, "
         f"status_history={customer_result.status_history}."
+    )
+    print(
+        "Orders seed complete: "
+        f"orders={order_result.orders}, "
+        f"items={order_result.order_items}, "
+        f"allocations={order_result.allocations}, "
+        f"payments={order_result.payments}, "
+        f"delivery_agents={order_result.delivery_agents}, "
+        f"deliveries={order_result.deliveries}."
     )
 
 

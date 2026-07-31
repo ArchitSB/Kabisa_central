@@ -9,8 +9,12 @@ from app.api.v1.routes.categories import router as categories_router
 from app.api.v1.routes.customer_documents import router as customer_documents_router
 from app.api.v1.routes.customer_feedback import router as customer_feedback_router
 from app.api.v1.routes.customers import router as customers_router
+from app.api.v1.routes.deliveries import router as deliveries_router
+from app.api.v1.routes.delivery_agents import router as delivery_agents_router
 from app.api.v1.routes.health import router as health_router
 from app.api.v1.routes.inventory import router as inventory_router
+from app.api.v1.routes.orders import router as orders_router
+from app.api.v1.routes.payments import router as payments_router
 from app.api.v1.routes.product_batches import router as product_batches_router
 from app.api.v1.routes.product_images import router as product_images_router
 from app.api.v1.routes.products import router as products_router
@@ -52,5 +56,13 @@ api_router.include_router(
     tags=["product batches"],
 )
 api_router.include_router(inventory_router, prefix="/inventory", tags=["inventory"])
+api_router.include_router(orders_router, prefix="/orders", tags=["orders"])
+api_router.include_router(payments_router, prefix="/payments", tags=["payments"])
+api_router.include_router(
+    delivery_agents_router,
+    prefix="/delivery-agents",
+    tags=["delivery agents"],
+)
+api_router.include_router(deliveries_router, prefix="/deliveries", tags=["deliveries"])
 api_router.include_router(catalog_transfer_router, prefix="/catalog", tags=["catalog transfer"])
 api_router.include_router(catalog_settings_router, tags=["catalog settings"])

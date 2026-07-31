@@ -1,20 +1,19 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Eye, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Eye } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  type OrderStatus,
-  type PaymentStatus,
-  type PreviewOrder,
-  orderStatusLabels,
-  paymentStatusLabels,
+import type {
+  OrderStatus,
+  OrderSummary,
+  PaymentStatus,
 } from "@/features/orders/orders.data";
+import { orderStatusLabels, paymentStatusLabels } from "@/features/orders/orders.data";
 import { formatMoney } from "@/lib/utils";
 
-const orderTone: Record<
+export const orderTone: Record<
   OrderStatus,
   "success" | "warning" | "danger" | "neutral" | "info"
 > = {
@@ -26,87 +25,76 @@ const orderTone: Record<
   UNFOUND: "neutral",
   CANCELLED: "danger",
 };
-
-const paymentTone: Record<PaymentStatus, "success" | "warning" | "danger"> = {
+export const paymentTone: Record<PaymentStatus, "success" | "warning" | "danger"> = {
   UNPAID: "danger",
   PARTIAL: "warning",
   PAID: "success",
 };
 
-export function getOrderColumns(currency: string): ColumnDef<PreviewOrder>[] {
+export function getOrderColumns(currency: string): ColumnDef<OrderSummary>[] {
   return [
     {
-      accessorKey: "orderNumber",
+      accessorKey: "order_number",
       header: "Order #",
       cell: ({ row }) => (
-        <button
-          type="button"
+        <Link
+          to={`/orders/${row.original.id}`}
           className="rounded-md font-mono text-xs font-semibold text-primary-700 transition-colors duration-micro hover:text-primary-900 hover:underline"
-          onClick={() =>
-            toast.info(row.original.orderNumber, {
-              description: "Live order detail arrives in Phase 4.",
-            })
-          }
         >
-          {row.original.orderNumber}
-        </button>
+          {row.original.order_number}
+        </Link>
       ),
     },
     {
-      accessorKey: "customer",
+      accessorKey: "customer_name",
       header: "Customer",
       cell: ({ row }) => (
-        <div className="max-w-[210px] truncate font-semibold" title={row.original.customer}>
-          {row.original.customer}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "location",
-      header: "Delivery location",
-      cell: ({ row }) => (
-        <span
-          className="block max-w-[190px] truncate text-secondary"
-          title={row.original.location}
-        >
-          {row.original.location}
+        <span className="block max-w-[220px] truncate font-semibold">
+          {row.original.customer_name}
         </span>
       ),
     },
     {
-      accessorKey: "paymentStatus",
+      accessorKey: "delivery_location",
+      header: "Delivery location",
+      cell: ({ row }) => (
+        <span className="block max-w-[190px] truncate text-secondary">
+          {row.original.delivery_location ?? "Not recorded"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "payment_status",
       header: "Payment",
       cell: ({ row }) => (
         <StatusBadge
-          label={paymentStatusLabels[row.original.paymentStatus]}
-          tone={paymentTone[row.original.paymentStatus]}
+          label={paymentStatusLabels[row.original.payment_status]}
+          tone={paymentTone[row.original.payment_status]}
         />
       ),
     },
     {
-      accessorKey: "total",
+      accessorKey: "total_amount",
       header: "Total",
       meta: { align: "right" },
       cell: ({ row }) => (
         <span className="numeric font-semibold">
-          {formatMoney(row.original.total, currency)}
+          {formatMoney(row.original.total_amount, currency)}
         </span>
       ),
     },
     {
-      accessorKey: "items",
+      accessorKey: "item_count",
       header: "Items",
       meta: { align: "right" },
-      cell: ({ row }) => (
-        <span className="numeric text-secondary">{row.original.items}</span>
-      ),
+      cell: ({ row }) => <span className="numeric">{row.original.item_count}</span>,
     },
     {
-      accessorKey: "createdAt",
+      accessorKey: "created_at",
       header: "Created",
       cell: ({ row }) => (
         <span className="numeric text-xs text-secondary">
-          {format(new Date(row.original.createdAt), "dd MMM, HH:mm")}
+          {format(new Date(row.original.created_at), "dd MMM, HH:mm")}
         </span>
       ),
     },
@@ -126,34 +114,12 @@ export function getOrderColumns(currency: string): ColumnDef<PreviewOrder>[] {
       enableSorting: false,
       meta: { align: "right" },
       cell: ({ row }) => (
-        <div className="flex justify-end gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast.info(`Viewing ${row.original.orderNumber}`)}
-          >
+        <Button asChild variant="outline" size="sm">
+          <Link to={`/orders/${row.original.id}`}>
             <Eye aria-hidden="true" />
             View
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast.info(`Editing ${row.original.orderNumber}`)}
-          >
-            <Pencil aria-hidden="true" />
-            Edit
-          </Button>
-          <Button
-            aria-label={`Delete ${row.original.orderNumber}`}
-            title="Soft delete begins with the live order module"
-            variant="destructive"
-            size="icon"
-            className="size-8 min-h-8 rounded-full"
-            disabled
-          >
-            <Trash2 aria-hidden="true" />
-          </Button>
-        </div>
+          </Link>
+        </Button>
       ),
     },
   ];

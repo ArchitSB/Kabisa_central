@@ -4,10 +4,9 @@ Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
 workspace for catalog, inventory, customers, orders, delivery, and payments.
 
 This repository contains the Phase 0 foundation, Phase 1 authentication/RBAC,
-the Phase 2 catalog/inventory module, and the live Phase 3 customer verification
-workspace. Catalog, stock, pricing, customer, regulatory-document, address, and
-feedback workflows use PostgreSQL; later order and delivery modules still use
-representative preview data until their scheduled phases.
+the Phase 2 catalog/inventory module, Phase 3 customer verification, and the
+live Phase 4 order, payment, allocation, and delivery workspace. All operational
+workflows use PostgreSQL; dashboard aggregates remain scheduled for Phase 5.
 
 ## Requirements
 
@@ -54,7 +53,7 @@ corepack prepare pnpm@10.14.0 --activate
    - Liveness: `http://localhost:8000/health`
    - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
 
-4. Configure and seed authentication, catalog/inventory, and customers.
+4. Configure and seed authentication, catalog/inventory, customers, and orders.
 
    Set `JWT_SECRET_KEY` and replace the placeholder
    `SUPER_ADMIN_PASSWORD` in `.env`. The configured
@@ -67,8 +66,9 @@ corepack prepare pnpm@10.14.0 --activate
    The seed refuses the documented placeholder or passwords shorter than 8
    characters. It is safe to re-run: the five system roles, permission
    catalogue, mappings, configured super-admin, three price tiers, two
-   warehouses, company settings, realistic 46-product catalog, and a varied
-   13-customer verification dataset are reconciled without duplicates.
+   warehouses, company settings, realistic 46-product catalog, a varied
+   13-customer verification dataset, delivery agents, and ten operational
+   orders spanning every lifecycle status are reconciled without duplicates.
    Re-running with a changed
    `SUPER_ADMIN_PASSWORD` updates the seeded administrator password.
 
@@ -181,8 +181,44 @@ Key Phase 3 API groups are:
 On customer creation, the default tier is `DLDM` for DLDM/ADDO,
 `COMMUNITY` for community pharmacies, and `WHOLESALE` for every institution or
 bulk buyer. Administrators can override that assignment. A verified customer
-is the Phase 4 order-eligibility flag; credit limits are stored but not yet
+is the order-eligibility flag; credit limits remain stored but are not yet
 enforced.
+
+## Orders, payments, and delivery
+
+The live Phase 4 module is available under **Orders** and **Delivery agents**.
+It includes:
+
+- admin-created orders for verified customers, with the customer price tier,
+  unit prices, discounts, tax, and totals computed and snapshotted server-side;
+- warehouse-scoped FEFO allocation at approval, row-locked stock reservation,
+  exact batch allocations, and transactional release on cancellation, failure,
+  or unfound status;
+- delivery assignment and dispatch, proof-backed completion that consumes both
+  the physical batch quantity and its reservation, and a full status timeline;
+- record-only cash, mobile-money, bank-transfer, and other payments with
+  collected-total reconciliation, `UNPAID`/`PARTIAL`/`PAID` status, and balance
+  due;
+- a responsive order creation drawer, status-filtered list and bulk actions,
+  detailed allocation/payment/delivery workspace, and delivery-agent CRUD.
+
+Phase 4 defaults to blocking approval when any line is short and allocating
+only from the selected warehouse. Both policies are backorder-ready but do not
+permit partial or cross-warehouse allocation yet. Cash is the default payment
+method; credit limits remain dormant until credit enforcement is added.
+
+Delivery proofs and agent ID evidence are stored under
+`apps/api/uploads/delivery-proofs/` and
+`apps/api/uploads/delivery-agent-proofs/`. Supported proof types are PDF, JPEG,
+and PNG, using the existing document upload limit.
+
+Key Phase 4 API groups are:
+
+```text
+/orders                   /orders/{id}/payments
+/orders/{id}/delivery     /payments
+/delivery-agents          /deliveries
+```
 
 ## Quality commands
 

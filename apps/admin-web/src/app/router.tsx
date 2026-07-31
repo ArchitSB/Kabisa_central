@@ -5,7 +5,6 @@ import { AuthGuard } from "@/features/auth/auth-guard";
 import { PermissionGuard } from "@/features/auth/permission-guard";
 
 const permissionRoutes = [
-  ["/delivery-agents", "delivery_agents.view"],
   ["/coupons", "coupons.view"],
   ["/reports", "reports.view"],
   ["/settings", "settings.view"],
@@ -40,6 +39,27 @@ export const router = createBrowserRouter([
                 lazy: async () => {
                   const { OrdersPage } = await import("@/features/orders/orders-page");
                   return { Component: OrdersPage };
+                },
+              },
+              {
+                path: "/orders/:orderId",
+                lazy: async () => {
+                  const { OrderDetailPage } =
+                    await import("@/features/orders/order-detail-page");
+                  return { Component: OrderDetailPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="delivery_agents.view" />,
+            children: [
+              {
+                path: "/delivery-agents",
+                lazy: async () => {
+                  const { DeliveryAgentsPage } =
+                    await import("@/features/orders/delivery-agents-page");
+                  return { Component: DeliveryAgentsPage };
                 },
               },
             ],
