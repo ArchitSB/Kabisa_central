@@ -5,7 +5,6 @@ import { AuthGuard } from "@/features/auth/auth-guard";
 import { PermissionGuard } from "@/features/auth/permission-guard";
 
 const permissionRoutes = [
-  ["/customers", "customers.view"],
   ["/delivery-agents", "delivery_agents.view"],
   ["/coupons", "coupons.view"],
   ["/reports", "reports.view"],
@@ -108,6 +107,40 @@ export const router = createBrowserRouter([
                 lazy: async () => {
                   const { BrandsPage } = await import("@/features/brands/brands-page");
                   return { Component: BrandsPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="customers.view" />,
+            children: [
+              {
+                path: "/customers",
+                lazy: async () => {
+                  const { CustomersPage } =
+                    await import("@/features/customers/customers-page");
+                  return { Component: CustomersPage };
+                },
+              },
+              {
+                path: "/customers/:customerId",
+                lazy: async () => {
+                  const { CustomerDetailPage } =
+                    await import("@/features/customers/customer-detail-page");
+                  return { Component: CustomerDetailPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="customer_feedback.view" />,
+            children: [
+              {
+                path: "/customers/feedback",
+                lazy: async () => {
+                  const { CustomerFeedbackPage } =
+                    await import("@/features/customers/customer-feedback-page");
+                  return { Component: CustomerFeedbackPage };
                 },
               },
             ],
