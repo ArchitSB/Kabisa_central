@@ -8,6 +8,7 @@ import {
   ContactRound,
   LayoutDashboard,
   LogOut,
+  MessageSquareText,
   PackageSearch,
   Settings,
   ShieldCheck,
@@ -49,6 +50,12 @@ const navigation: Array<{ label: string; items: NavItem[] }> = [
       },
       { label: "Inventory", href: "/inventory", icon: Boxes, permission: "inventory.view" },
       { label: "Customers", href: "/customers", icon: Store, permission: "customers.view" },
+      {
+        label: "Customer feedback",
+        href: "/customers/feedback",
+        icon: MessageSquareText,
+        permission: "customer_feedback.view",
+      },
       {
         label: "Delivery agents",
         href: "/delivery-agents",
@@ -176,7 +183,7 @@ export function Sidebar({ mobile = false, onClose }: SidebarProps) {
                     <NavLink
                       key={item.href}
                       to={item.href}
-                      end={item.href === "/"}
+                      end={item.href === "/" || item.href === "/customers"}
                       onClick={onClose}
                       className={({ isActive }) =>
                         cn(

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     db_echo: bool = False
     uploads_dir: str = "apps/api/uploads"
     max_product_image_bytes: int = 5 * 1024 * 1024
+    max_customer_document_bytes: int = 10 * 1024 * 1024
 
     jwt_secret_key: str = "development-only-change-me"
     jwt_algorithm: str = "HS256"

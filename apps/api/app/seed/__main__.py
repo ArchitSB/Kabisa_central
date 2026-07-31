@@ -1,13 +1,19 @@
 import asyncio
 
 from app.core.database import engine
-from app.seed import SeedConfigurationError, seed_auth_rbac, seed_catalog_inventory
+from app.seed import (
+    SeedConfigurationError,
+    seed_auth_rbac,
+    seed_catalog_inventory,
+    seed_customers,
+)
 
 
 async def main() -> None:
     try:
         auth_result = await seed_auth_rbac()
         catalog_result = await seed_catalog_inventory()
+        customer_result = await seed_customers()
     finally:
         await engine.dispose()
 
@@ -33,6 +39,14 @@ async def main() -> None:
         f"batches={catalog_result.batches}, "
         f"movements={catalog_result.movements}, "
         f"settings={catalog_result.settings}."
+    )
+    print(
+        "Customer seed complete: "
+        f"customers={customer_result.customers}, "
+        f"documents={customer_result.documents}, "
+        f"addresses={customer_result.addresses}, "
+        f"feedback={customer_result.feedback}, "
+        f"status_history={customer_result.status_history}."
     )
 
 

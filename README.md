@@ -4,9 +4,10 @@ Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
 workspace for catalog, inventory, customers, orders, delivery, and payments.
 
 This repository contains the Phase 0 foundation, Phase 1 authentication/RBAC,
-and the live Phase 2 catalog and inventory module. Catalog, pricing, warehouse,
-batch, stock movement, and CSV workflows use PostgreSQL; later domain modules
-still use representative preview data until their scheduled phases.
+the Phase 2 catalog/inventory module, and the live Phase 3 customer verification
+workspace. Catalog, stock, pricing, customer, regulatory-document, address, and
+feedback workflows use PostgreSQL; later order and delivery modules still use
+representative preview data until their scheduled phases.
 
 ## Requirements
 
@@ -53,7 +54,7 @@ corepack prepare pnpm@10.14.0 --activate
    - Liveness: `http://localhost:8000/health`
    - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
 
-4. Configure and seed authentication plus the Phase 2 catalog.
+4. Configure and seed authentication, catalog/inventory, and customers.
 
    Set `JWT_SECRET_KEY` and replace the placeholder
    `SUPER_ADMIN_PASSWORD` in `.env`. The configured
@@ -66,8 +67,9 @@ corepack prepare pnpm@10.14.0 --activate
    The seed refuses the documented placeholder or passwords shorter than 8
    characters. It is safe to re-run: the five system roles, permission
    catalogue, mappings, configured super-admin, three price tiers, two
-   warehouses, company settings, and realistic 46-product catalog are
-   reconciled without duplicates. Re-running with a changed
+   warehouses, company settings, realistic 46-product catalog, and a varied
+   13-customer verification dataset are reconciled without duplicates.
+   Re-running with a changed
    `SUPER_ADMIN_PASSWORD` updates the seeded administrator password.
 
 5. Install and start the admin web.
@@ -145,6 +147,42 @@ Key Phase 2 API groups are:
 /product-batches     /inventory           /inventory/movements
 /catalog/import      /catalog/export      /settings/catalog
 ```
+
+## Customers and verification
+
+The live Phase 3 module is available under **Customers** and **Customer
+feedback**. It includes:
+
+- hospitals, government institutions, NGOs/FBOs, clinics, wholesalers,
+  community pharmacies, and DLDM/ADDO customers linked to an explicit price
+  tier;
+- strict `PENDING → UNDER_REVIEW → VERIFIED|REJECTED` verification, rejected
+  resubmission, verified-account suspension/reinstatement, and an actor/time
+  status history;
+- TIN, TMDA, Pharmacy Council, TBS, and other document uploads with approval or
+  rejection notes and a four-document readiness indicator;
+- institutional verification overrides that require a recorded justification;
+- multiple delivery addresses with one enforced default, dormant cash/credit
+  fields for Phase 4, and handled/unhandled customer feedback.
+
+Customer documents are stored under
+`apps/api/uploads/customer-documents/`, limited by
+`MAX_CUSTOMER_DOCUMENT_BYTES`, and delivered only through an authenticated API
+endpoint. They are intentionally not exposed by the public static upload mount.
+
+Key Phase 3 API groups are:
+
+```text
+/customers                       /customers/{id}/documents
+/customers/{id}/addresses        /customers/{id}/feedback
+/customer-documents              /customer-feedback
+```
+
+On customer creation, the default tier is `DLDM` for DLDM/ADDO,
+`COMMUNITY` for community pharmacies, and `WHOLESALE` for every institution or
+bulk buyer. Administrators can override that assignment. A verified customer
+is the Phase 4 order-eligibility flag; credit limits are stored but not yet
+enforced.
 
 ## Quality commands
 

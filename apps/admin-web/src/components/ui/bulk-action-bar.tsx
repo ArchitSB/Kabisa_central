@@ -10,6 +10,7 @@ type BulkActionBarProps = {
   onAction?: (action: string) => void;
   pending?: boolean;
   noun?: string;
+  showSort?: boolean;
 };
 
 const defaultActions = [
@@ -25,6 +26,7 @@ export function BulkActionBar({
   onAction,
   pending = false,
   noun = "records",
+  showSort = true,
 }: BulkActionBarProps) {
   const [action, setAction] = useState("");
   return (
@@ -65,18 +67,19 @@ export function BulkActionBar({
         </span>
       </div>
       <div className="flex items-center gap-3 text-xs text-secondary">
-        <label className="flex items-center gap-2">
-          <span>Sort</span>
-          <select
-            aria-label="Sort orders"
-            className="h-8 rounded-full border border-border bg-surface px-3 pr-8 text-xs font-semibold text-foreground"
-            defaultValue="newest"
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="total">Highest total</option>
-          </select>
-        </label>
+        {showSort ? (
+          <label className="flex items-center gap-2">
+            <span>Sort</span>
+            <select
+              aria-label="Sort records"
+              className="h-8 rounded-full border border-border bg-surface px-3 pr-8 text-xs font-semibold text-foreground"
+              defaultValue="newest"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        ) : null}
         <span className="whitespace-nowrap">
           <strong className="numeric text-foreground">{totalCount}</strong> {noun}
         </span>
