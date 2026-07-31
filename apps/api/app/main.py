@@ -56,7 +56,13 @@ uploads_path = Path(settings.uploads_dir)
 if not uploads_path.is_absolute() and uploads_path.parts[:2] == ("apps", "api"):
     uploads_path = Path(__file__).resolve().parents[3] / uploads_path
 uploads_path.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
+product_uploads_path = uploads_path / "products"
+product_uploads_path.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/uploads/products",
+    StaticFiles(directory=product_uploads_path),
+    name="product uploads",
+)
 
 
 @app.get("/health", response_model=LivenessResponse, tags=["health"])
