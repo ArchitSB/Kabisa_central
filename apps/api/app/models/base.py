@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, func, text
+from sqlalchemy import DateTime, ForeignKey, func, text
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,4 +34,19 @@ class SoftDeleteMixin:
         DateTime(timezone=True),
         nullable=True,
         default=None,
+    )
+
+
+class AuditUserMixin:
+    created_by: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("admin_users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_by: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("admin_users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )

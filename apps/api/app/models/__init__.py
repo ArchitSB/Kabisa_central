@@ -1,3 +1,42 @@
 from app.models.auth import AdminUser, Permission, Role, RolePermission
+from app.models.catalog import (
+    BatchStatus,
+    Brand,
+    Category,
+    MovementType,
+    PriceTier,
+    Product,
+    ProductBatch,
+    ProductImage,
+    ProductPrice,
+    ProductType,
+    ProductUnit,
+    ReferenceType,
+    StockMovement,
+    SystemSetting,
+    VerificationStatus,
+    Warehouse,
+)
 
-__all__ = ["AdminUser", "Permission", "Role", "RolePermission"]
+__all__ = [
+    "AdminUser",
+    "BatchStatus",
+    "Brand",
+    "Category",
+    "MovementType",
+    "Permission",
+    "PriceTier",
+    "Product",
+    "ProductBatch",
+    "ProductImage",
+    "ProductPrice",
+    "ProductType",
+    "ProductUnit",
+    "ReferenceType",
+    "Role",
+    "RolePermission",
+    "StockMovement",
+    "SystemSetting",
+    "VerificationStatus",
+    "Warehouse",
+]

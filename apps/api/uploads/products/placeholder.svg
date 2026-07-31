@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title description">
+  <title id="title">Kabisa product placeholder</title>
+  <desc id="description">A neutral package placeholder for products without a photo.</desc>
+  <rect width="320" height="320" rx="28" fill="#f1f5f4"/>
+  <rect x="82" y="62" width="156" height="196" rx="18" fill="#ffffff" stroke="#cbd7d4" stroke-width="6"/>
+  <path d="M82 110h156" stroke="#0f766e" stroke-width="12"/>
+  <path d="M126 174h68M160 140v68" stroke="#0f766e" stroke-linecap="round" stroke-width="14"/>
+  <path d="M112 230h96" stroke="#cbd7d4" stroke-linecap="round" stroke-width="8"/>
+</svg>
