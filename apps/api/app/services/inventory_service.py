@@ -211,7 +211,23 @@ async def list_batches(
     if warehouse_id:
         filters.append(ProductBatch.warehouse_id == warehouse_id)
     if batch_status:
-        filters.append(ProductBatch.status == batch_status)
+        today = date.today()
+        if batch_status == BatchStatus.EXPIRED:
+            filters.append(
+                or_(
+                    ProductBatch.status == BatchStatus.EXPIRED,
+                    ProductBatch.expiry_date < today,
+                )
+            )
+        elif batch_status == BatchStatus.ACTIVE:
+            filters.extend(
+                [
+                    ProductBatch.status == BatchStatus.ACTIVE,
+                    ProductBatch.expiry_date >= today,
+                ]
+            )
+        else:
+            filters.append(ProductBatch.status == batch_status)
     if expiring_before:
         filters.append(ProductBatch.expiry_date <= expiring_before)
     if search:

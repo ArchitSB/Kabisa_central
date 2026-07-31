@@ -1000,6 +1000,12 @@ async def update_product_image(
             detail="The product image was not found.",
             code="product_image_not_found",
         )
+    if payload.is_primary is False and image.is_primary:
+        raise AppError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Set another image as primary before unsetting this one.",
+            code="primary_image_required",
+        )
     if payload.is_primary is True:
         await session.execute(
             update(ProductImage)

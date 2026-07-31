@@ -3,16 +3,17 @@
 Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
 workspace for catalog, inventory, customers, orders, delivery, and payments.
 
-This repository contains the Phase 0 foundation and Phase 1 authentication
-and role-based access control. The admin shell uses real administrator
-sessions and server-enforced permissions. Domain workflows still use
-representative preview data until their scheduled phases.
+This repository contains the Phase 0 foundation, Phase 1 authentication/RBAC,
+and the live Phase 2 catalog and inventory module. Catalog, pricing, warehouse,
+batch, stock movement, and CSV workflows use PostgreSQL; later domain modules
+still use representative preview data until their scheduled phases.
 
 ## Requirements
 
-- Python 3.12
+- Python 3.12–3.14
 - Node.js 20+ and pnpm 10
 - Docker with Compose v2
+- PostgreSQL 18
 
 If pnpm is not installed, enable it through Corepack:
 
@@ -29,7 +30,7 @@ corepack prepare pnpm@10.14.0 --activate
    cp .env.example .env
    ```
 
-2. Start PostgreSQL 16.
+2. Start PostgreSQL 18.
 
    ```bash
    docker compose up -d postgres
@@ -52,7 +53,7 @@ corepack prepare pnpm@10.14.0 --activate
    - Liveness: `http://localhost:8000/health`
    - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
 
-4. Configure and seed the Phase 1 administrator.
+4. Configure and seed authentication plus the Phase 2 catalog.
 
    Set `JWT_SECRET_KEY` and replace the placeholder
    `SUPER_ADMIN_PASSWORD` in `.env`. The configured
@@ -64,9 +65,10 @@ corepack prepare pnpm@10.14.0 --activate
 
    The seed refuses the documented placeholder or passwords shorter than 8
    characters. It is safe to re-run: the five system roles, permission
-   catalogue, mappings, and configured super-admin are reconciled without
-   duplicates. Re-running with a changed `SUPER_ADMIN_PASSWORD` updates the
-   seeded administrator password.
+   catalogue, mappings, configured super-admin, three price tiers, two
+   warehouses, company settings, and realistic 46-product catalog are
+   reconciled without duplicates. Re-running with a changed
+   `SUPER_ADMIN_PASSWORD` updates the seeded administrator password.
 
 5. Install and start the admin web.
 
@@ -113,6 +115,36 @@ GET /roles/permissions
 
 All non-authentication management routes independently enforce their required
 permission. Expected API errors use `{ "detail": "...", "code": "..." }`.
+
+## Catalog and inventory
+
+The live module is available under **Products**, **Inventory**, **Categories**,
+**Brands**, and **Warehouses** after sign-in. It includes:
+
+- six product classifications, prescription/POM and TMDA fields, verification,
+  local product images, and a complete DLDM/Community/Wholesale price matrix;
+- Chang'ombe HQ and Kariakoo warehouse stock, FEFO batches, inbound receipts,
+  signed manual adjustments, and an immutable movement timeline;
+- on-hand totals that exclude expired/non-active stock and reserved quantities,
+  per-warehouse breakdowns, low/out-of-stock status, 90-day expiry alerts, and
+  cost-based valuation;
+- CSV export plus a two-stage import that validates and previews every row
+  before an explicit commit.
+
+Runtime defaults live in the `settings` table: `currency=TZS`,
+`expiring_soon_days=90`, `low_stock_default=10`, and
+`stock_valuation=COST`. Product uploads are stored under
+`apps/api/uploads/products/`; configure `UPLOADS_DIR` and
+`MAX_PRODUCT_IMAGE_BYTES` when a deployment needs different limits.
+
+Key Phase 2 API groups are:
+
+```text
+/warehouses          /categories          /brands
+/products            /product-images      /price-tiers
+/product-batches     /inventory           /inventory/movements
+/catalog/import      /catalog/export      /settings/catalog
+```
 
 ## Quality commands
 
