@@ -552,9 +552,13 @@ async def delete_address(
 
 def _document_directory() -> Path:
     configured = Path(settings.uploads_dir)
-    if not configured.is_absolute():
-        configured = Path.cwd() / configured
-    directory = configured.resolve() / "customer-documents"
+    if configured.is_absolute():
+        base = configured
+    elif configured.parts[:2] == ("apps", "api"):
+        base = Path(__file__).resolve().parents[4] / configured
+    else:
+        base = Path(__file__).resolve().parents[2] / configured
+    directory = base.resolve() / "customer-documents"
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 

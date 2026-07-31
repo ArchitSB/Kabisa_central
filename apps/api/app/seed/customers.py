@@ -304,9 +304,13 @@ class CustomerSeedResult:
 
 
 def _seed_document_path() -> str:
-    root = Path(settings.uploads_dir)
-    if not root.is_absolute():
-        root = Path.cwd() / root
+    configured = Path(settings.uploads_dir)
+    if configured.is_absolute():
+        root = configured
+    elif configured.parts[:2] == ("apps", "api"):
+        root = Path(__file__).resolve().parents[4] / configured
+    else:
+        root = Path(__file__).resolve().parents[2] / configured
     directory = root.resolve() / "customer-documents"
     directory.mkdir(parents=True, exist_ok=True)
     sample = directory / "seed-certificate.pdf"

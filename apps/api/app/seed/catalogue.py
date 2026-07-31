@@ -147,6 +147,7 @@ ROLE_PERMISSION_CODES: dict[str, frozenset[str]] = {
             "brands.view",
             "inventory.view",
             "inventory.adjust",
+            "orders.view",
             "batches.create",
             "batches.edit",
             "catalog.import",
@@ -172,7 +173,7 @@ EXPECTED_MAPPING_COUNTS = {
     "super_admin": 55,
     "manager": 49,
     "sales": 11,
-    "inventory": 11,
+    "inventory": 12,
     "accounts": 7,
 }
 
