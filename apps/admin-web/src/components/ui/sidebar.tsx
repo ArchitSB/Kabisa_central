@@ -15,6 +15,7 @@ import {
   Tags,
   Truck,
   UserRoundCog,
+  Warehouse as WarehouseIcon,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -66,6 +67,12 @@ const navigation: Array<{ label: string; items: NavItem[] }> = [
         permission: "categories.view",
       },
       { label: "Brands", href: "/brands", icon: ContactRound, permission: "brands.view" },
+      {
+        label: "Warehouses",
+        href: "/warehouses",
+        icon: WarehouseIcon,
+        permission: "inventory.view",
+      },
       {
         label: "Coupons",
         href: "/coupons",

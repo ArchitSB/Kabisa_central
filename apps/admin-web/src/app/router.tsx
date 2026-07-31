@@ -5,12 +5,8 @@ import { AuthGuard } from "@/features/auth/auth-guard";
 import { PermissionGuard } from "@/features/auth/permission-guard";
 
 const permissionRoutes = [
-  ["/products", "products.view"],
-  ["/inventory", "inventory.view"],
   ["/customers", "customers.view"],
   ["/delivery-agents", "delivery_agents.view"],
-  ["/categories", "categories.view"],
-  ["/brands", "brands.view"],
   ["/coupons", "coupons.view"],
   ["/reports", "reports.view"],
   ["/settings", "settings.view"],
@@ -45,6 +41,73 @@ export const router = createBrowserRouter([
                 lazy: async () => {
                   const { OrdersPage } = await import("@/features/orders/orders-page");
                   return { Component: OrdersPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="products.view" />,
+            children: [
+              {
+                path: "/products",
+                lazy: async () => {
+                  const { ProductsPage } =
+                    await import("@/features/products/products-page");
+                  return { Component: ProductsPage };
+                },
+              },
+              {
+                path: "/products/:productId",
+                lazy: async () => {
+                  const { ProductDetailPage } =
+                    await import("@/features/products/product-detail-page");
+                  return { Component: ProductDetailPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="inventory.view" />,
+            children: [
+              {
+                path: "/inventory",
+                lazy: async () => {
+                  const { InventoryPage } =
+                    await import("@/features/inventory/inventory-page");
+                  return { Component: InventoryPage };
+                },
+              },
+              {
+                path: "/warehouses",
+                lazy: async () => {
+                  const { WarehousesPage } =
+                    await import("@/features/warehouses/warehouses-page");
+                  return { Component: WarehousesPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="categories.view" />,
+            children: [
+              {
+                path: "/categories",
+                lazy: async () => {
+                  const { CategoriesPage } =
+                    await import("@/features/categories/categories-page");
+                  return { Component: CategoriesPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="brands.view" />,
+            children: [
+              {
+                path: "/brands",
+                lazy: async () => {
+                  const { BrandsPage } = await import("@/features/brands/brands-page");
+                  return { Component: BrandsPage };
                 },
               },
             ],
