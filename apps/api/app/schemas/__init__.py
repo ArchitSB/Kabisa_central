@@ -41,6 +41,14 @@ from app.schemas.catalog import (
     WarehouseRead,
     WarehouseUpdate,
 )
+from app.schemas.coupon import (
+    CouponCreate,
+    CouponListResponse,
+    CouponRead,
+    CouponUpdate,
+    CouponValidationRead,
+    CouponValidationRequest,
+)
 from app.schemas.customer import (
     CustomerAddressCreate,
     CustomerAddressListResponse,
@@ -96,6 +104,14 @@ from app.schemas.order import (
     PaymentCreate,
     PaymentListResponse,
     PaymentRead,
+)
+from app.schemas.reporting import (
+    DashboardSummary,
+    InventoryReport,
+    ProductReport,
+    ReceivablesReport,
+    ReportOptions,
+    SalesReport,
 )
 from app.schemas.roles import (
     PermissionListResponse,
@@ -159,6 +175,18 @@ __all__ = [
     "CustomerRead",
     "CustomerStatusHistoryRead",
     "CustomerUpdate",
+    "CouponCreate",
+    "CouponListResponse",
+    "CouponRead",
+    "CouponUpdate",
+    "CouponValidationRead",
+    "CouponValidationRequest",
+    "DashboardSummary",
+    "InventoryReport",
+    "ProductReport",
+    "ReceivablesReport",
+    "ReportOptions",
+    "SalesReport",
     "DeliveryAgentCreate",
     "DeliveryAgentListResponse",
     "DeliveryAgentRead",

@@ -6,9 +6,11 @@ from app.api.v1.routes.brands import router as brands_router
 from app.api.v1.routes.catalog_settings import router as catalog_settings_router
 from app.api.v1.routes.catalog_transfer import router as catalog_transfer_router
 from app.api.v1.routes.categories import router as categories_router
+from app.api.v1.routes.coupons import router as coupons_router
 from app.api.v1.routes.customer_documents import router as customer_documents_router
 from app.api.v1.routes.customer_feedback import router as customer_feedback_router
 from app.api.v1.routes.customers import router as customers_router
+from app.api.v1.routes.dashboard import router as dashboard_router
 from app.api.v1.routes.deliveries import router as deliveries_router
 from app.api.v1.routes.delivery_agents import router as delivery_agents_router
 from app.api.v1.routes.health import router as health_router
@@ -18,6 +20,7 @@ from app.api.v1.routes.payments import router as payments_router
 from app.api.v1.routes.product_batches import router as product_batches_router
 from app.api.v1.routes.product_images import router as product_images_router
 from app.api.v1.routes.products import router as products_router
+from app.api.v1.routes.reports import router as reports_router
 from app.api.v1.routes.roles import router as roles_router
 from app.api.v1.routes.warehouses import router as warehouses_router
 
@@ -33,6 +36,8 @@ api_router.include_router(health_router, prefix="/health", tags=["health"])
 api_router.include_router(warehouses_router, prefix="/warehouses", tags=["warehouses"])
 api_router.include_router(categories_router, prefix="/categories", tags=["categories"])
 api_router.include_router(customers_router, prefix="/customers", tags=["customers"])
+api_router.include_router(coupons_router, prefix="/coupons", tags=["coupons"])
+api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(
     customer_documents_router,
     prefix="/customer-documents",
@@ -64,5 +69,6 @@ api_router.include_router(
     tags=["delivery agents"],
 )
 api_router.include_router(deliveries_router, prefix="/deliveries", tags=["deliveries"])
+api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
 api_router.include_router(catalog_transfer_router, prefix="/catalog", tags=["catalog transfer"])
 api_router.include_router(catalog_settings_router, tags=["catalog settings"])
