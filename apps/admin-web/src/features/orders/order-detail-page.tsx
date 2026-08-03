@@ -193,9 +193,16 @@ export function OrderDetailPage() {
           />
         </Metric>
         <Metric label="Total">
-          <strong className="numeric text-lg">
-            {formatMoney(data.total_amount, data.currency)}
-          </strong>
+          <span>
+            <strong className="numeric block text-lg">
+              {formatMoney(data.total_amount, data.currency)}
+            </strong>
+            {data.coupon_code ? (
+              <span className="mt-1 block text-xs font-semibold text-success">
+                {data.coupon_code} · −{formatMoney(data.coupon_discount, data.currency)}
+              </span>
+            ) : null}
+          </span>
         </Metric>
         <Metric label="Balance due">
           <strong className="numeric text-lg">

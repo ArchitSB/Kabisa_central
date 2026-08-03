@@ -32,6 +32,7 @@ type DataTableProps<TData> = {
   getRowId?: (row: TData) => string;
   pageSize?: number;
   selectable?: boolean;
+  showPagination?: boolean;
   onSelectionChange?: (selectedRows: TData[]) => void;
 };
 
@@ -42,6 +43,7 @@ export function DataTable<TData>({
   getRowId,
   pageSize = 6,
   selectable = true,
+  showPagination = true,
   onSelectionChange,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -192,14 +194,16 @@ export function DataTable<TData>({
           </tbody>
         </table>
       </div>
-      <Pagination
-        page={table.getState().pagination.pageIndex + 1}
-        pageCount={table.getPageCount()}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={table.getCanNextPage()}
-        onPrevious={() => table.previousPage()}
-        onNext={() => table.nextPage()}
-      />
+      {showPagination ? (
+        <Pagination
+          page={table.getState().pagination.pageIndex + 1}
+          pageCount={table.getPageCount()}
+          canPrevious={table.getCanPreviousPage()}
+          canNext={table.getCanNextPage()}
+          onPrevious={() => table.previousPage()}
+          onNext={() => table.nextPage()}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Plus, TicketPercent, Trash2, X } from "lucide-react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -21,6 +21,8 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { listProducts, listWarehouses } from "@/features/catalog/catalog-api";
 import { listCustomers } from "@/features/customers/customers-api";
+import { useHasPermission } from "@/features/auth/auth-store";
+import { validateCoupon } from "@/features/coupons/coupons-api";
 import { createOrder, previewOrder } from "@/features/orders/orders-api";
 import type { OrderPayload } from "@/features/orders/orders.data";
 import { getApiErrorDetail } from "@/lib/api-errors";
@@ -40,6 +42,7 @@ const schema = z.object({
     .min(1, "Add at least one product."),
   discount_total: z.coerce.number().min(0),
   tax_total: z.coerce.number().min(0),
+  coupon_code: z.string().trim(),
   delivery_address: z.string().trim(),
   delivery_location: z.string().trim(),
   notes: z.string().trim(),
@@ -48,7 +51,10 @@ type Values = z.infer<typeof schema>;
 
 export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [couponEntry, setCouponEntry] = useState("");
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+  const canUseCoupons = useHasPermission("coupons.view");
   const queryClient = useQueryClient();
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -58,6 +64,7 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
       items: [{ product_id: "", quantity: 1, line_discount: 0 }],
       discount_total: 0,
       tax_total: 0,
+      coupon_code: "",
       delivery_address: "",
       delivery_location: "",
       notes: "",
@@ -99,6 +106,7 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
       items: values.items,
       discount_total: values.discount_total,
       tax_total: values.tax_total,
+      coupon_code: values.coupon_code || null,
       delivery_address: values.delivery_address || null,
       delivery_location: values.delivery_location || null,
       notes: values.notes || null,
@@ -121,9 +129,27 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
     onError: (error) =>
       toast.error("Order could not be created", { description: getApiErrorDetail(error) }),
   });
+  const applyCoupon = useMutation({
+    mutationFn: () => validateCoupon(couponEntry, preview.data?.subtotal ?? 0),
+    onSuccess: (result) => {
+      if (!result.valid || !result.code) {
+        form.setValue("coupon_code", "");
+        setCouponMessage(result.reason ?? "This coupon is not valid.");
+        return;
+      }
+      form.setValue("coupon_code", result.code, { shouldDirty: true });
+      setCouponEntry(result.code);
+      setCouponMessage(`Applied · ${result.code}`);
+    },
+    onError: (error) => setCouponMessage(getApiErrorDetail(error)),
+  });
 
   useEffect(() => {
-    if (!open) form.reset();
+    if (!open) {
+      form.reset();
+      setCouponEntry("");
+      setCouponMessage(null);
+    }
   }, [form, open]);
 
   function selectCustomer(id: string) {
@@ -311,6 +337,63 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
               </div>
             </section>
 
+            {canUseCoupons ? (
+              <section className="border-t border-border pt-6">
+                <FormField label="Coupon (optional)" htmlFor="order-coupon">
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="relative flex-1">
+                      <TicketPercent
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+                      />
+                      <Input
+                        id="order-coupon"
+                        className="pl-10 font-mono uppercase"
+                        value={couponEntry}
+                        placeholder="Enter coupon code"
+                        onChange={(event) => {
+                          setCouponEntry(event.target.value.toUpperCase());
+                          setCouponMessage(null);
+                        }}
+                      />
+                    </div>
+                    {values.coupon_code ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          form.setValue("coupon_code", "");
+                          setCouponEntry("");
+                          setCouponMessage(null);
+                        }}
+                      >
+                        <X aria-hidden="true" /> Remove
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!couponEntry || !preview.data || applyCoupon.isPending}
+                        onClick={() => applyCoupon.mutate()}
+                      >
+                        {applyCoupon.isPending ? "Checking…" : "Apply coupon"}
+                      </Button>
+                    )}
+                  </div>
+                  {couponMessage ? (
+                    <span
+                      className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${values.coupon_code ? "text-success" : "text-danger"}`}
+                    >
+                      {values.coupon_code ? (
+                        <CheckCircle2 aria-hidden="true" className="size-4" />
+                      ) : null}
+                      {couponMessage}
+                    </span>
+                  ) : null}
+                </FormField>
+              </section>
+            ) : null}
+
             <section className="grid gap-4 border-t border-border pt-6 sm:grid-cols-2">
               <FormField label="Order discount" htmlFor="order-discount-total">
                 <Input
@@ -354,6 +437,20 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
                       {formatMoney(preview.data.subtotal, preview.data.currency)}
                     </strong>
                   </div>
+                  <div className="flex justify-between text-secondary">
+                    <span>Total discounts</span>
+                    <strong>
+                      −{formatMoney(preview.data.discount_total, preview.data.currency)}
+                    </strong>
+                  </div>
+                  {preview.data.coupon_code ? (
+                    <div className="flex justify-between text-success">
+                      <span>Coupon · {preview.data.coupon_code}</span>
+                      <strong>
+                        −{formatMoney(preview.data.coupon_discount, preview.data.currency)}
+                      </strong>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between border-t border-primary-200 pt-2 text-base">
                     <span>Total</span>
                     <strong>

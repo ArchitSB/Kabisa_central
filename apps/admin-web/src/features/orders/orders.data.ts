@@ -25,6 +25,9 @@ export type OrderSummary = {
   source: "ADMIN" | "CUSTOMER";
   price_tier_id: string;
   price_tier_code: string;
+  coupon_id: string | null;
+  coupon_code: string | null;
+  coupon_discount: number;
   subtotal: number;
   discount_total: number;
   tax_total: number;
@@ -137,6 +140,7 @@ export type OrderPayload = {
   items: Array<{ product_id: string; quantity: number; line_discount: number }>;
   discount_total: number;
   tax_total: number;
+  coupon_code: string | null;
   delivery_address: string | null;
   delivery_location: string | null;
   notes: string | null;
@@ -146,6 +150,9 @@ export type OrderPreview = {
   warehouse_id: string;
   price_tier_id: string;
   price_tier_code: string;
+  coupon_id: string | null;
+  coupon_code: string | null;
+  coupon_discount: number;
   items: OrderItem[];
   subtotal: number;
   discount_total: number;
@@ -168,47 +175,3 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
   PARTIAL: "Partial",
   PAID: "Paid",
 };
-
-// Phase 0 dashboard preview remains static until Phase 5 aggregate wiring.
-export type PreviewOrder = {
-  id: string;
-  orderNumber: string;
-  customer: string;
-  location: string;
-  total: number;
-  status: OrderStatus;
-};
-export const previewOrders: PreviewOrder[] = [
-  {
-    id: "1",
-    orderNumber: "KB-2026-000124",
-    customer: "Upendo Community Pharmacy",
-    location: "Kinondoni",
-    total: 3845000,
-    status: "PENDING",
-  },
-  {
-    id: "2",
-    orderNumber: "KB-2026-000123",
-    customer: "AfyaPlus DLDM",
-    location: "Mikocheni",
-    total: 1284000,
-    status: "APPROVED",
-  },
-  {
-    id: "3",
-    orderNumber: "KB-2026-000122",
-    customer: "Mwanza Medical Stores",
-    location: "Mwanza",
-    total: 6720000,
-    status: "PENDING_DELIVERY",
-  },
-  {
-    id: "4",
-    orderNumber: "KB-2026-000121",
-    customer: "Jitegemee Pharmacy",
-    location: "Arusha",
-    total: 2190000,
-    status: "DELIVERED",
-  },
-];
