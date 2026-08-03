@@ -34,7 +34,7 @@ from app.schemas.order import (
     OrderUpdate,
     PaymentRead,
 )
-from app.services import inventory_service, pricing_service
+from app.services import coupon_service, inventory_service, pricing_service
 from app.services.common import sort_expression
 
 
@@ -146,6 +146,15 @@ async def _quote(session: AsyncSession, payload: OrderCreate):
         discount_total=payload.discount_total,
         tax_total=payload.tax_total,
     )
+    coupon = None
+    if payload.coupon_code and payload.coupon_code.strip():
+        coupon, validation = await coupon_service.resolve_coupon(
+            session,
+            payload.coupon_code,
+            totals.subtotal,
+            raise_invalid=True,
+        )
+        totals = pricing_service.apply_coupon(totals, validation.discount)
     stocks = await warehouse_on_hand_many(
         session,
         {line.product.id for line in totals.lines},
@@ -162,17 +171,20 @@ async def _quote(session: AsyncSession, payload: OrderCreate):
                 ),
                 code="insufficient_stock",
             )
-    return customer, totals, stocks
+    return customer, totals, stocks, coupon
 
 
 async def preview_order(session: AsyncSession, payload: OrderCreate) -> OrderPreviewRead:
-    customer, totals, stocks = await _quote(session, payload)
+    customer, totals, stocks, coupon = await _quote(session, payload)
     settings = await inventory_service.runtime_settings(session)
     return OrderPreviewRead(
         customer_id=customer.id,
         warehouse_id=payload.warehouse_id,
         price_tier_id=customer.price_tier_id,
         price_tier_code=customer.price_tier.code,
+        coupon_id=coupon.id if coupon else None,
+        coupon_code=coupon.code if coupon else None,
+        coupon_discount=totals.coupon_discount,
         items=[
             OrderItemRead(
                 id=line.product.id,
@@ -217,12 +229,15 @@ async def create_order(
     payload: OrderCreate,
     current_user: AdminUser,
 ) -> OrderDetailRead:
-    customer, totals, _ = await _quote(session, payload)
+    customer, totals, _, coupon = await _quote(session, payload)
     order = Order(
         order_number=await _next_order_number(session),
         customer_id=customer.id,
         warehouse_id=payload.warehouse_id,
         price_tier_id=customer.price_tier_id,
+        coupon_id=coupon.id if coupon else None,
+        coupon_code=coupon.code if coupon else None,
+        coupon_discount=totals.coupon_discount,
         subtotal=totals.subtotal,
         discount_total=totals.discount_total,
         tax_total=totals.tax_total,
@@ -283,14 +298,26 @@ async def update_order(
         }
         for item in order.items
     ]
+    existing_manual_discount = max(
+        Decimal("0"),
+        order.discount_total
+        - sum((item.line_discount for item in order.items), Decimal("0"))
+        - order.coupon_discount,
+    )
+    coupon_code = (
+        payload.coupon_code if "coupon_code" in payload.model_fields_set else order.coupon_code
+    )
     create_payload = OrderCreate(
         customer_id=order.customer_id,
         warehouse_id=payload.warehouse_id or order.warehouse_id,
         items=payload.items or current_lines,
         discount_total=(
-            payload.discount_total if payload.discount_total is not None else order.discount_total
+            payload.discount_total
+            if payload.discount_total is not None
+            else existing_manual_discount
         ),
         tax_total=payload.tax_total if payload.tax_total is not None else order.tax_total,
+        coupon_code=coupon_code,
         delivery_address=(
             payload.delivery_address
             if payload.delivery_address is not None
@@ -303,7 +330,7 @@ async def update_order(
         ),
         notes=payload.notes if payload.notes is not None else order.notes,
     )
-    customer, totals, _ = await _quote(session, create_payload)
+    customer, totals, _, coupon = await _quote(session, create_payload)
     await session.execute(delete(OrderItem).where(OrderItem.order_id == order.id))
     await session.flush()
     for line in totals.lines:
@@ -321,6 +348,9 @@ async def update_order(
             )
         )
     order.warehouse_id = create_payload.warehouse_id
+    order.coupon_id = coupon.id if coupon else None
+    order.coupon_code = coupon.code if coupon else None
+    order.coupon_discount = totals.coupon_discount
     order.subtotal = totals.subtotal
     order.discount_total = totals.discount_total
     order.tax_total = totals.tax_total
@@ -346,6 +376,9 @@ def _summary(order: Order) -> OrderSummaryRead:
         source=order.source,
         price_tier_id=order.price_tier_id,
         price_tier_code=order.price_tier.code,
+        coupon_id=order.coupon_id,
+        coupon_code=order.coupon_code,
+        coupon_discount=order.coupon_discount,
         subtotal=order.subtotal,
         discount_total=order.discount_total,
         tax_total=order.tax_total,

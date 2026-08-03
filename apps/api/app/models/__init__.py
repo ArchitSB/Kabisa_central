@@ -17,6 +17,7 @@ from app.models.catalog import (
     VerificationStatus,
     Warehouse,
 )
+from app.models.coupon import Coupon, CouponDiscountType, coupon_discount_type_enum
 from app.models.customer import (
     BusinessType,
     Customer,
@@ -60,6 +61,9 @@ __all__ = [
     "CustomerFeedback",
     "CustomerStatus",
     "CustomerStatusHistory",
+    "Coupon",
+    "CouponDiscountType",
+    "coupon_discount_type_enum",
     "Delivery",
     "DeliveryAgent",
     "DeliveryStatus",

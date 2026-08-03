@@ -1,0 +1,40 @@
+export type CouponDiscountType = "PERCENT" | "FLAT";
+export type Coupon = {
+  id: string;
+  code: string;
+  name: string;
+  discount_type: CouponDiscountType;
+  discount_value: number;
+  min_order_amount: number | null;
+  start_date: string;
+  end_date: string;
+  usage_limit: number | null;
+  used_count: number;
+  is_active: boolean;
+  validity: "VALID" | "INACTIVE" | "UPCOMING" | "EXPIRED" | "EXHAUSTED";
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  deleted_at: string | null;
+};
+export type CouponPayload = {
+  code: string;
+  name: string;
+  discount_type: CouponDiscountType;
+  discount_value: number;
+  min_order_amount: number | null;
+  start_date: string;
+  end_date: string;
+  usage_limit: number | null;
+  is_active: boolean;
+};
+export type CouponValidation = {
+  valid: boolean;
+  reason: string | null;
+  coupon_id: string | null;
+  code: string | null;
+  discount: number;
+  discount_type: CouponDiscountType | null;
+  discount_value: number | null;
+};

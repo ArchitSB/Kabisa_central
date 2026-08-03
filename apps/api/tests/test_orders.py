@@ -122,7 +122,8 @@ async def test_verified_gate_and_server_side_price_snapshot(
         )
         assert created.price_tier_id == tier.id
         assert created.items[0].unit_price == Decimal("1000.00")
-        assert created.subtotal == Decimal("3900.00")
+        assert created.subtotal == Decimal("4000.00")
+        assert created.discount_total == Decimal("150.00")
         assert created.total_amount == Decimal("3875.00")
 
         customer.status = CustomerStatus.SUSPENDED

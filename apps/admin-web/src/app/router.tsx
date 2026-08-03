@@ -4,11 +4,7 @@ import { AppLayout } from "@/app/app-layout";
 import { AuthGuard } from "@/features/auth/auth-guard";
 import { PermissionGuard } from "@/features/auth/permission-guard";
 
-const permissionRoutes = [
-  ["/coupons", "coupons.view"],
-  ["/reports", "reports.view"],
-  ["/settings", "settings.view"],
-] as const;
+const permissionRoutes = [["/settings", "settings.view"]] as const;
 
 export const router = createBrowserRouter([
   {
@@ -186,6 +182,30 @@ export const router = createBrowserRouter([
                 lazy: async () => {
                   const { RolesPage } = await import("@/features/roles/roles-page");
                   return { Component: RolesPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="coupons.view" />,
+            children: [
+              {
+                path: "/coupons",
+                lazy: async () => {
+                  const { CouponsPage } = await import("@/features/coupons/coupons-page");
+                  return { Component: CouponsPage };
+                },
+              },
+            ],
+          },
+          {
+            element: <PermissionGuard permission="reports.view" />,
+            children: [
+              {
+                path: "/reports",
+                lazy: async () => {
+                  const { ReportsPage } = await import("@/features/reporting/reports-page");
+                  return { Component: ReportsPage };
                 },
               },
             ],

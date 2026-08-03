@@ -19,11 +19,11 @@ export const copy = {
       order: "Create order",
     },
     salesTitle: "Sales pulse",
-    salesSubtitle: "Illustrative weekly activity until live reports arrive in Phase 5.",
+    salesSubtitle: "Committed gross sales from approved and fulfilled orders.",
     watchlistTitle: "Inventory watchlist",
     watchlistSubtitle: "Items that need the inventory team’s attention.",
     recentTitle: "Recent orders",
-    recentSubtitle: "A preview of the shared table language used throughout the admin.",
+    recentSubtitle: "The latest orders across the active fulfilment workflow.",
   },
   orders: {
     eyebrow: "Order management",

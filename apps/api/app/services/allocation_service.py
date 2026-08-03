@@ -21,7 +21,7 @@ from app.models import (
     StockMovement,
 )
 from app.schemas.order import OrderDetailRead
-from app.services import order_service
+from app.services import coupon_service, order_service
 
 
 def _history(
@@ -99,6 +99,8 @@ async def approve_order(
                 code="insufficient_stock",
             )
         locked_batches[item.id] = item_batches
+
+    await coupon_service.confirm_order_coupon(session, order)
 
     for item in order.items:
         remaining = item.quantity
@@ -276,6 +278,8 @@ async def terminal_transition(
         await release_reservations(
             session, order, current_user, reason=(note or to_status.value.lower())
         )
+    if to_status == OrderStatus.CANCELLED:
+        await coupon_service.reverse_order_coupon(session, order)
     if order.delivery is not None and order.status == OrderStatus.PENDING_DELIVERY:
         order.delivery.status = DeliveryStatus.FAILED
         order.delivery.notes = note or order.delivery.notes

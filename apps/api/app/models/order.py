@@ -120,6 +120,13 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin, SoftDeleteMixin
     price_tier_id: Mapped[UUID] = mapped_column(
         ForeignKey("price_tiers.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    coupon_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("coupons.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    coupon_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    coupon_discount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), nullable=False, default=Decimal("0"), server_default="0"
+    )
     subtotal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     discount_total: Mapped[Decimal] = mapped_column(
         Numeric(14, 2), nullable=False, default=Decimal("0"), server_default="0"
@@ -139,6 +146,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin, SoftDeleteMixin
     customer = relationship("Customer", lazy="joined")
     warehouse = relationship("Warehouse", lazy="joined")
     price_tier = relationship("PriceTier", lazy="joined")
+    coupon = relationship("Coupon", back_populates="orders", lazy="joined")
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", lazy="raise"
     )

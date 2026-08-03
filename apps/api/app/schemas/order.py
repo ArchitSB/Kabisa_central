@@ -27,6 +27,7 @@ class OrderCreate(BaseModel):
     items: list[OrderLineCreate] = Field(min_length=1)
     discount_total: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
     tax_total: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+    coupon_code: str | None = Field(default=None, max_length=80)
     delivery_address: str | None = Field(default=None, max_length=2000)
     delivery_location: str | None = Field(default=None, max_length=200)
     notes: str | None = Field(default=None, max_length=3000)
@@ -44,6 +45,7 @@ class OrderUpdate(BaseModel):
     warehouse_id: UUID | None = None
     discount_total: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     tax_total: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    coupon_code: str | None = Field(default=None, max_length=80)
     delivery_address: str | None = Field(default=None, max_length=2000)
     delivery_location: str | None = Field(default=None, max_length=200)
     notes: str | None = Field(default=None, max_length=3000)
@@ -211,6 +213,9 @@ class OrderSummaryRead(BaseModel):
     source: OrderSource
     price_tier_id: UUID
     price_tier_code: str
+    coupon_id: UUID | None
+    coupon_code: str | None
+    coupon_discount: Decimal
     subtotal: Decimal
     discount_total: Decimal
     tax_total: Decimal
@@ -250,6 +255,9 @@ class OrderPreviewRead(BaseModel):
     warehouse_id: UUID
     price_tier_id: UUID
     price_tier_code: str
+    coupon_id: UUID | None
+    coupon_code: str | None
+    coupon_discount: Decimal
     items: list[OrderItemRead]
     subtotal: Decimal
     discount_total: Decimal

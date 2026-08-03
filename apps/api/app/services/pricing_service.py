@@ -32,6 +32,9 @@ class PricedLine:
 class OrderTotals:
     lines: list[PricedLine]
     subtotal: Decimal
+    line_discount_total: Decimal
+    manual_discount_total: Decimal
+    coupon_discount: Decimal
     discount_total: Decimal
     tax_total: Decimal
     total: Decimal
@@ -103,21 +106,42 @@ async def price_order(
                 line_total=money(gross - line_discount),
             )
         )
-    subtotal = money(sum((line.line_total for line in priced), Decimal("0")))
+    subtotal = money(sum((line.unit_price * line.quantity for line in priced), Decimal("0")))
+    line_discount_total = money(sum((line.line_discount for line in priced), Decimal("0")))
     order_discount = money(discount_total)
     tax = money(tax_total)
-    if order_discount > subtotal:
+    if line_discount_total + order_discount > subtotal:
         raise AppError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The order discount cannot exceed the subtotal.",
+            detail="Combined line and order discounts cannot exceed the subtotal.",
             code="invalid_order_discount",
         )
+    combined_discount = money(line_discount_total + order_discount)
     return OrderTotals(
         lines=priced,
         subtotal=subtotal,
-        discount_total=order_discount,
+        line_discount_total=line_discount_total,
+        manual_discount_total=order_discount,
+        coupon_discount=Decimal("0.00"),
+        discount_total=combined_discount,
         tax_total=tax,
-        total=money(subtotal - order_discount + tax),
+        total=money(subtotal - combined_discount + tax),
+    )
+
+
+def apply_coupon(totals: OrderTotals, requested_discount: Decimal) -> OrderTotals:
+    available = max(Decimal("0"), totals.subtotal - totals.discount_total)
+    coupon_discount = min(money(requested_discount), money(available))
+    combined_discount = money(totals.discount_total + coupon_discount)
+    return OrderTotals(
+        lines=totals.lines,
+        subtotal=totals.subtotal,
+        line_discount_total=totals.line_discount_total,
+        manual_discount_total=totals.manual_discount_total,
+        coupon_discount=coupon_discount,
+        discount_total=combined_discount,
+        tax_total=totals.tax_total,
+        total=money(totals.subtotal - combined_discount + totals.tax_total),
     )
 
 
