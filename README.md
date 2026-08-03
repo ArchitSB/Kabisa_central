@@ -1,12 +1,14 @@
 # Kabisa Admin Panel
 
 Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
-workspace for catalog, inventory, customers, orders, delivery, and payments.
+workspace for catalog, inventory, customers, orders, delivery, payments,
+coupons, dashboards, and reporting.
 
 This repository contains the Phase 0 foundation, Phase 1 authentication/RBAC,
 the Phase 2 catalog/inventory module, Phase 3 customer verification, and the
-live Phase 4 order, payment, allocation, and delivery workspace. All operational
-workflows use PostgreSQL; dashboard aggregates remain scheduled for Phase 5.
+live Phase 4 order, payment, allocation, and delivery workspace, and the Phase 5
+coupon, live dashboard, and reporting module. All operational workflows and
+aggregates use PostgreSQL.
 
 ## Requirements
 
@@ -53,7 +55,7 @@ corepack prepare pnpm@10.14.0 --activate
    - Liveness: `http://localhost:8000/health`
    - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
 
-4. Configure and seed authentication, catalog/inventory, customers, and orders.
+4. Configure and seed authentication, catalog/inventory, customers, orders, and coupons.
 
    Set `JWT_SECRET_KEY` and replace the placeholder
    `SUPER_ADMIN_PASSWORD` in `.env`. The configured
@@ -68,7 +70,8 @@ corepack prepare pnpm@10.14.0 --activate
    catalogue, mappings, configured super-admin, three price tiers, two
    warehouses, company settings, realistic 46-product catalog, a varied
    13-customer verification dataset, delivery agents, and ten operational
-   orders spanning every lifecycle status are reconciled without duplicates.
+   orders spanning every lifecycle status, report-friendly transaction dates,
+   and three coupons in valid/expired/inactive states are reconciled without duplicates.
    Re-running with a changed
    `SUPER_ADMIN_PASSWORD` updates the seeded administrator password.
 
@@ -135,7 +138,7 @@ The live module is available under **Products**, **Inventory**, **Categories**,
 
 Runtime defaults live in the `settings` table: `currency=TZS`,
 `expiring_soon_days=90`, `low_stock_default=10`, and
-`stock_valuation=COST`. Product uploads are stored under
+`stock_valuation=COST`. Phase 5 adds `dead_stock_days=90`. Product uploads are stored under
 `apps/api/uploads/products/`; configure `UPLOADS_DIR` and
 `MAX_PRODUCT_IMAGE_BYTES` when a deployment needs different limits.
 
@@ -218,6 +221,38 @@ Key Phase 4 API groups are:
 /orders                   /orders/{id}/payments
 /orders/{id}/delivery     /payments
 /delivery-agents          /deliveries
+```
+
+## Coupons, dashboard, and reports
+
+Phase 5 completes the functional admin workspace with:
+
+- a fully live dashboard at `/` with permission-aware KPIs, period deltas,
+  seven-day committed-sales pulse, warehouse inventory watchlist, receivables,
+  and recent orders;
+- Sales, Products, Receivables, and Inventory report tabs with date,
+  warehouse, customer, category, brand, and status filters where applicable;
+- streamed CSV and dependency-light XLSX downloads carrying the company name,
+  TIN, address, contacts, generation time, and currency from `settings`;
+- coupon CRUD, date/minimum/usage validation, server-side order application,
+  approval-time usage accounting, and transactional reversal on cancellation.
+
+Committed sales are `APPROVED`, `PENDING_DELIVERY`, and `DELIVERED` orders.
+Pending, failed, unfound, and cancelled orders do not contribute to sales or
+receivables. This is the Phase 5 working definition; businesses that recognize
+revenue only on delivery can change the shared committed-status constant.
+Receivables are the committed order total less collected payments and are aged
+into 0–30, 31–60, 61–90, and 90+ day buckets. Dead stock is active,
+non-expired, positive stock without an outbound movement during the configured
+90-day window.
+
+Key Phase 5 API groups are:
+
+```text
+/dashboard/summary        /coupons
+/coupons/validate         /reports/sales
+/reports/products         /reports/receivables
+/reports/inventory
 ```
 
 ## Quality commands

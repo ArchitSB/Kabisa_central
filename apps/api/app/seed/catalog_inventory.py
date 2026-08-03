@@ -717,6 +717,7 @@ SETTINGS = {
     "expiring_soon_days": ("90", "Days before expiry used for inventory alerts."),
     "low_stock_default": ("10", "Fallback product reorder threshold."),
     "stock_valuation": ("COST", "Inventory valuation method."),
+    "dead_stock_days": ("90", "Days without outbound movement used for dead-stock alerts."),
     "company_name": ("Kabisa Medical and Surgical Pharmacy Ltd", "Registered company name."),
     "tagline": ("One Stop For Medicare", "Company tagline."),
     "tin": ("143196097", "Taxpayer identification number."),

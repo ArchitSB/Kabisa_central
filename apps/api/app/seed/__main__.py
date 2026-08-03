@@ -5,6 +5,7 @@ from app.seed import (
     SeedConfigurationError,
     seed_auth_rbac,
     seed_catalog_inventory,
+    seed_coupons,
     seed_customers,
     seed_orders,
 )
@@ -16,6 +17,7 @@ async def main() -> None:
         catalog_result = await seed_catalog_inventory()
         customer_result = await seed_customers()
         order_result = await seed_orders()
+        coupon_result = await seed_coupons()
     finally:
         await engine.dispose()
 
@@ -58,6 +60,11 @@ async def main() -> None:
         f"payments={order_result.payments}, "
         f"delivery_agents={order_result.delivery_agents}, "
         f"deliveries={order_result.deliveries}."
+    )
+    print(
+        "Coupons/reporting seed complete: "
+        f"coupons={coupon_result.coupons}, "
+        f"dated_orders={coupon_result.dated_orders}."
     )
 
 
