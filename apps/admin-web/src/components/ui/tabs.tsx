@@ -47,13 +47,25 @@ export function Tabs({
               )}
               onClick={() => setActive(item.value)}
               onKeyDown={(event) => {
-                if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                if (
+                  event.key !== "ArrowLeft" &&
+                  event.key !== "ArrowRight" &&
+                  event.key !== "Home" &&
+                  event.key !== "End"
+                )
+                  return;
                 event.preventDefault();
                 const index = items.findIndex(
                   (candidate) => candidate.value === item.value,
                 );
                 const direction = event.key === "ArrowRight" ? 1 : -1;
-                const next = items[(index + direction + items.length) % items.length];
+                const next =
+                  event.key === "Home"
+                    ? items[0]
+                    : event.key === "End"
+                      ? items.at(-1)
+                      : items[(index + direction + items.length) % items.length];
+                if (!next) return;
                 setActive(next.value);
                 document.getElementById(`${instanceId}-${next.value}-tab`)?.focus();
               }}

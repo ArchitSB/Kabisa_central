@@ -134,6 +134,20 @@ export function DashboardPage() {
       },
     ].filter(Boolean) as Kpi[];
   }, [data]);
+  const pulse = useMemo(
+    () =>
+      (data?.sales_pulse ?? []).map((point) => ({
+        ...point,
+        label: new Intl.DateTimeFormat("en-TZ", { weekday: "short" }).format(
+          new Date(`${point.date}T12:00:00`),
+        ),
+      })),
+    [data?.sales_pulse],
+  );
+  const pulseTotal = useMemo(
+    () => (data?.sales_pulse ?? []).reduce((sum, point) => sum + point.gross_sales, 0),
+    [data?.sales_pulse],
+  );
 
   if (dashboard.isPending) return <LoadingState label="Loading live operations…" />;
   if (dashboard.isError || !data) {
@@ -144,14 +158,6 @@ export function DashboardPage() {
       />
     );
   }
-
-  const pulseTotal = data.sales_pulse.reduce((sum, point) => sum + point.gross_sales, 0);
-  const pulse = data.sales_pulse.map((point) => ({
-    ...point,
-    label: new Intl.DateTimeFormat("en-TZ", { weekday: "short" }).format(
-      new Date(`${point.date}T12:00:00`),
-    ),
-  }));
 
   return (
     <div className="space-y-6">

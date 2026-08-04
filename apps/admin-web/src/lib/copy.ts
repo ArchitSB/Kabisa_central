@@ -38,9 +38,9 @@ export const copy = {
     reset: "Reset filters",
   },
   placeholder: {
-    eyebrow: "Foundation preview",
-    titleSuffix: "is ready for its build phase",
+    eyebrow: "Administration",
+    titleSuffix: "uses managed configuration",
     subtitle:
-      "The navigation, layout, tokens, and responsive shell are in place. Live workflows arrive in the scheduled phase.",
+      "Operational defaults are managed in the settings table and documented in the deployment runbook.",
   },
 } as const;

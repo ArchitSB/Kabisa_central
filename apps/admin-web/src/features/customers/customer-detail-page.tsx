@@ -102,7 +102,7 @@ const actionCopy: Record<
   },
   suspend: {
     title: "Suspend this account?",
-    description: "A suspended customer will not be eligible to order in Phase 4.",
+    description: "A suspended customer cannot place or approve new orders.",
     label: "Suspension reason",
     confirm: "Suspend customer",
     destructive: true,
@@ -592,8 +592,13 @@ export function CustomerDetailPage() {
       content: (
         <EmptyState
           icon={PackageOpen}
-          title="Order history arrives in Phase 4"
-          description="This customer profile is ready for verified-order gating and tier-based pricing."
+          title="Review orders in the order workspace"
+          description="Order creation already enforces this customer's verification status and assigned price tier."
+          action={
+            <Button asChild variant="secondary">
+              <Link to="/orders">Open orders</Link>
+            </Button>
+          }
         />
       ),
     },

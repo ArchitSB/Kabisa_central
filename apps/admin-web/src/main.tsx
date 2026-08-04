@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
 
 import { router } from "@/app/router";
+import { AppErrorBoundary } from "@/app/app-error-boundary";
 import { queryClient } from "@/lib/query-client";
 import "@/styles/globals.css";
 
@@ -16,18 +17,20 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-        toastOptions={{
-          classNames: {
-            toast: "font-sans !rounded-card !border-border !shadow-drawer",
-          },
-        }}
-      />
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          toastOptions={{
+            classNames: {
+              toast: "font-sans !rounded-card !border-border !shadow-drawer",
+            },
+          }}
+        />
+      </QueryClientProvider>
+    </AppErrorBoundary>
   </React.StrictMode>,
 );
