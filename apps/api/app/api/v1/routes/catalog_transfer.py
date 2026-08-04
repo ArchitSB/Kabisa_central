@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.deps import require_permission
+from app.core.uploads import read_upload_limited
 from app.models import AdminUser
 from app.schemas import CatalogImportResult
 from app.services import import_service
@@ -35,7 +37,12 @@ async def import_catalog(
 ) -> CatalogImportResult:
     return await import_service.import_catalog(
         session,
-        content=await file.read(),
+        content=await read_upload_limited(
+            file,
+            max_bytes=settings.max_catalog_import_bytes,
+            detail="The catalog import exceeds the configured size limit.",
+            code="invalid_catalog_import_size",
+        ),
         confirm=confirm,
         current_user=current_user,
     )

@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, statu
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.deps import require_permission
+from app.core.uploads import read_upload_limited
 from app.models import AdminUser, VehicleType
 from app.schemas import (
     DeliveryAgentCreate,
@@ -88,7 +90,12 @@ async def upload_delivery_agent_proof(
         session,
         agent_id,
         content_type=file.content_type or "application/octet-stream",
-        content=await file.read(),
+        content=await read_upload_limited(
+            file,
+            max_bytes=settings.max_delivery_proof_bytes,
+            detail="The identity proof exceeds the configured size limit.",
+            code="invalid_proof_size",
+        ),
         current_user=current_user,
     )
 

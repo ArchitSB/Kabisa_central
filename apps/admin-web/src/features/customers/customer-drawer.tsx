@@ -325,7 +325,7 @@ export function CustomerDrawer({
                 <FormField
                   label="Credit limit"
                   htmlFor="customer-credit-limit"
-                  hint="Stored now; enforcement begins in Phase 4."
+                  hint="Stored for account planning; credit enforcement is not enabled."
                   error={form.formState.errors.credit_limit?.message}
                 >
                   <Input

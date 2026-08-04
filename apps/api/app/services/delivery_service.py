@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import status
 from sqlalchemy import func, or_, select
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import AppError
+from app.core.uploads import JPEG, PDF, PNG, store_upload, upload_path
 from app.models import (
     AdminUser,
     Delivery,
@@ -30,42 +31,26 @@ from app.schemas.order import (
 from app.services import allocation_service, order_service
 
 ALLOWED_PROOFS = {
-    "application/pdf": (".pdf", (b"%PDF",)),
-    "image/jpeg": (".jpg", (b"\xff\xd8\xff",)),
-    "image/png": (".png", (b"\x89PNG\r\n\x1a\n",)),
+    "application/pdf": PDF,
+    "image/jpeg": JPEG,
+    "image/png": PNG,
 }
 
 
-def _upload_directory(section: str) -> Path:
-    configured = Path(settings.uploads_dir)
-    if configured.is_absolute():
-        base = configured
-    elif configured.parts[:2] == ("apps", "api"):
-        base = Path(__file__).resolve().parents[4] / configured
-    else:
-        base = Path(__file__).resolve().parents[2] / configured
-    directory = base.resolve() / section
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory
-
-
 def _store_proof(section: str, *, content_type: str, content: bytes) -> str:
-    definition = ALLOWED_PROOFS.get(content_type)
-    if definition is None or not content.startswith(definition[1]):
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Proof files must be a valid PDF, JPEG, or PNG.",
-            code="invalid_proof_file",
-        )
-    if not content or len(content) > settings.max_customer_document_bytes:
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The proof file is empty or exceeds the configured size limit.",
-            code="invalid_proof_size",
-        )
-    name = f"{uuid4().hex}{definition[0]}"
-    (_upload_directory(section) / name).write_bytes(content)
-    return f"{section}/{name}"
+    return store_upload(
+        section,
+        content_type=content_type,
+        content=content,
+        allowed=ALLOWED_PROOFS,
+        max_bytes=settings.max_delivery_proof_bytes,
+        type_detail="Proof files must be a valid PDF, JPEG, or PNG.",
+        type_code="invalid_proof_file",
+        size_detail="The proof file is empty or exceeds the configured size limit.",
+        size_code="invalid_proof_size",
+        content_detail="The proof content does not match its declared file type.",
+        content_code="invalid_proof_file",
+    )
 
 
 async def get_agent(session: AsyncSession, agent_id: UUID) -> DeliveryAgent:
@@ -386,7 +371,7 @@ async def delivery_proof_file(session: AsyncSession, delivery_id: UUID) -> Path:
             detail="The delivery proof was not found.",
             code="delivery_proof_not_found",
         )
-    path = _upload_directory("delivery-proofs") / Path(delivery.proof_path).name
+    path = upload_path("delivery-proofs", delivery.proof_path)
     if not path.is_file():
         raise AppError(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -404,7 +389,7 @@ async def agent_proof_file(session: AsyncSession, agent_id: UUID) -> Path:
             detail="The agent identity proof was not found.",
             code="delivery_agent_proof_not_found",
         )
-    path = _upload_directory("delivery-agent-proofs") / Path(agent.id_proof_path).name
+    path = upload_path("delivery-agent-proofs", agent.id_proof_path)
     if not path.is_file():
         raise AppError(
             status_code=status.HTTP_404_NOT_FOUND,

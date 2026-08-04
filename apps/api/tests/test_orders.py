@@ -3,12 +3,15 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
+from app.core.config import settings
 from app.core.errors import AppError
 from app.models import (
     AdminUser,
     BatchStatus,
+    BusinessType,
     Category,
     Customer,
+    CustomerDocumentStatus,
     CustomerStatus,
     DeliveryAgent,
     OrderPaymentStatus,
@@ -20,12 +23,15 @@ from app.models import (
     Role,
     Warehouse,
 )
+from app.schemas.customer import CustomerCreate, CustomerDocumentReview
 from app.schemas.order import DeliveryAssign, OrderCreate, OrderLineCreate, PaymentCreate
 from app.services import (
     allocation_service,
+    customer_service,
     delivery_service,
     order_service,
     payment_service,
+    verification_service,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -242,3 +248,77 @@ async def test_payment_reconciliation_and_delivery_consumes_reserved_stock(
 
         stored = await session.scalar(select(ProductBatch).where(ProductBatch.id == early.id))
         assert stored.quantity_reserved == 0
+
+
+async def test_customer_onboarding_to_verified_order_flow(
+    test_session_factory: async_sessionmaker[AsyncSession],
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """The second production-critical flow crosses customer, document, and order layers."""
+    monkeypatch.setattr(settings, "uploads_dir", str(tmp_path))
+    async with test_session_factory() as session:
+        user, _, _, warehouse, product, _, _ = await _records(
+            session,
+            customer_status=CustomerStatus.PENDING,
+        )
+        customer = await customer_service.create_customer(
+            session,
+            CustomerCreate(
+                business_name="Onboarding Integration Hospital",
+                business_type=BusinessType.HOSPITAL,
+                contact_person="Procurement",
+                email=f"onboarding-{uuid4()}@example.co.tz",
+                phone=f"+255{uuid4().int % 10**9:09d}",
+                physical_address="Dar es Salaam, Tanzania",
+                region="Dar es Salaam",
+            ),
+            user,
+        )
+
+        with pytest.raises(AppError) as unverified:
+            await order_service.create_order(
+                session,
+                _payload(customer, warehouse, product, 1),
+                user,
+            )
+        assert unverified.value.code == "customer_not_verified"
+
+        for document_type in customer_service.STANDARD_DOCUMENT_TYPES:
+            uploaded = await customer_service.upload_document(
+                session,
+                customer.id,
+                doc_type=document_type,
+                filename=f"{document_type.value.lower()}.pdf",
+                content_type="application/pdf",
+                content=b"%PDF-1.7\nKabisa verification evidence",
+                current_user=user,
+            )
+            reviewed = await verification_service.review_document(
+                session,
+                uploaded.id,
+                CustomerDocumentReview(
+                    status=CustomerDocumentStatus.APPROVED,
+                    notes="Checked against the original certificate.",
+                ),
+                user,
+            )
+            assert reviewed.status == CustomerDocumentStatus.APPROVED
+
+        await verification_service.submit_for_review(session, customer.id, user)
+        verified = await verification_service.verify_customer(
+            session,
+            customer.id,
+            user,
+            justification_note=None,
+        )
+        assert verified.status == CustomerStatus.VERIFIED
+        assert verified.verification_readiness.ready is True
+
+        order = await order_service.create_order(
+            session,
+            _payload(verified, warehouse, product, 1),
+            user,
+        )
+        assert order.status == OrderStatus.PENDING
+        assert order.customer_id == verified.id

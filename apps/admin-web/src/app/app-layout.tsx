@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Bell, Menu, Wifi } from "lucide-react";
+import { Menu, Wifi } from "lucide-react";
 import { Outlet, useLocation } from "react-router-dom";
 
 import { RoleSwitcher } from "@/components/ui/role-switcher";
@@ -15,10 +15,45 @@ export function AppLayout() {
   const prefersReducedMotion = useReducedMotion();
   const user = useAuthStore((state) => state.user);
   const { mobileNavOpen, setMobileNavOpen } = useUiStore();
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMobileNavOpen(false);
   }, [location.pathname, setMobileNavOpen]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const trigger = mobileMenuButtonRef.current;
+    const firstControl = mobileNavRef.current?.querySelector<HTMLElement>(
+      'button, a[href], [tabindex]:not([tabindex="-1"])',
+    );
+    firstControl?.focus();
+    return () => trigger?.focus();
+  }, [mobileNavOpen]);
+
+  function handleMobileNavKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      setMobileNavOpen(false);
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = Array.from(
+      mobileNavRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    );
+    if (controls.length === 0) return;
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,6 +82,11 @@ export function AppLayout() {
               onClick={() => setMobileNavOpen(false)}
             />
             <motion.div
+              ref={mobileNavRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Primary navigation"
+              tabIndex={-1}
               className="relative h-full w-fit"
               initial={prefersReducedMotion ? false : { x: -32, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -55,6 +95,7 @@ export function AppLayout() {
                 duration: prefersReducedMotion ? 0 : 0.22,
                 ease: [0.2, 0, 0, 1],
               }}
+              onKeyDown={handleMobileNavKeyDown}
             >
               <Sidebar mobile onClose={() => setMobileNavOpen(false)} />
             </motion.div>
@@ -66,6 +107,7 @@ export function AppLayout() {
         <header className="sticky top-0 z-20 flex h-[70px] items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur-md sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
+              ref={mobileMenuButtonRef}
               type="button"
               aria-label={copy.topbar.menu}
               onClick={() => setMobileNavOpen(true)}
@@ -92,17 +134,10 @@ export function AppLayout() {
 
           <div className="flex items-center gap-2.5">
             <RoleSwitcher />
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="relative flex size-10 items-center justify-center rounded-full border border-border bg-surface text-secondary transition-colors duration-standard hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
-            >
-              <Bell aria-hidden="true" className="size-[18px]" />
-              <span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-danger" />
-            </button>
             <div
               aria-label={`${user?.name ?? "User"} profile`}
-              className="flex size-10 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white shadow-sm transition-colors duration-standard hover:bg-primary-800"
+              role="img"
+              className="flex size-10 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white shadow-sm"
             >
               {getInitials(user?.name ?? "")}
             </div>

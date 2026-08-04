@@ -157,6 +157,7 @@ export function CategoriesPage() {
           canEdit ? (
             <button
               type="button"
+              className="inline-flex min-h-10 items-center rounded-full"
               aria-label={`Set ${row.original.name} ${row.original.is_active ? "inactive" : "active"}`}
               onClick={() => toggle.mutate(row.original)}
             >

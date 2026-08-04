@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import status
 from sqlalchemy import func, or_, select, update
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.errors import AppError
+from app.core.uploads import JPEG, PDF, PNG, store_upload, upload_path
 from app.models import (
     AdminUser,
     BusinessType,
@@ -52,14 +53,9 @@ STANDARD_DOCUMENT_TYPES = (
 )
 
 ALLOWED_DOCUMENT_TYPES = {
-    "application/pdf": ".pdf",
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-}
-DOCUMENT_SIGNATURES = {
-    "application/pdf": (b"%PDF",),
-    "image/jpeg": (b"\xff\xd8\xff",),
-    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "application/pdf": PDF,
+    "image/jpeg": JPEG,
+    "image/png": PNG,
 }
 
 
@@ -72,7 +68,7 @@ def default_price_tier_code(business_type: BusinessType) -> str:
 
 
 def resolve_price_tier(customer: Customer) -> PriceTier:
-    """Return the explicit tier Phase 4 should use when pricing an order."""
+    """Return the explicit tier used when pricing an order."""
     if not customer.price_tier.is_active:
         raise AppError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -550,19 +546,6 @@ async def delete_address(
     await session.commit()
 
 
-def _document_directory() -> Path:
-    configured = Path(settings.uploads_dir)
-    if configured.is_absolute():
-        base = configured
-    elif configured.parts[:2] == ("apps", "api"):
-        base = Path(__file__).resolve().parents[4] / configured
-    else:
-        base = Path(__file__).resolve().parents[2] / configured
-    directory = base.resolve() / "customer-documents"
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory
-
-
 async def list_documents(
     session: AsyncSession,
     customer_id: UUID,
@@ -604,30 +587,23 @@ async def upload_document(
     current_user: AdminUser,
 ) -> CustomerDocumentRead:
     await get_customer_entity(session, customer_id)
-    if content_type not in ALLOWED_DOCUMENT_TYPES:
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Customer documents must be PDF, JPEG, or PNG files.",
-            code="unsupported_document_type",
-        )
-    if not content or len(content) > settings.max_customer_document_bytes:
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The document is empty or exceeds the configured size limit.",
-            code="invalid_document_size",
-        )
-    if not any(content.startswith(signature) for signature in DOCUMENT_SIGNATURES[content_type]):
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The file content does not match its declared document type.",
-            code="invalid_document_content",
-        )
-    stored_name = f"{uuid4()}{ALLOWED_DOCUMENT_TYPES[content_type]}"
-    (_document_directory() / stored_name).write_bytes(content)
+    stored_reference = store_upload(
+        "customer-documents",
+        content_type=content_type,
+        content=content,
+        allowed=ALLOWED_DOCUMENT_TYPES,
+        max_bytes=settings.max_customer_document_bytes,
+        type_detail="Customer documents must be PDF, JPEG, or PNG files.",
+        type_code="unsupported_document_type",
+        size_detail="The document is empty or exceeds the configured size limit.",
+        size_code="invalid_document_size",
+        content_detail="The file content does not match its declared document type.",
+        content_code="invalid_document_content",
+    )
     document = CustomerDocument(
         customer_id=customer_id,
         doc_type=doc_type,
-        file_path=f"customer-documents/{stored_name}",
+        file_path=stored_reference,
         original_filename=Path(filename).name[:255] or "document",
         mime_type=content_type,
         created_by=current_user.id,
@@ -635,6 +611,7 @@ async def upload_document(
     )
     session.add(document)
     await session.commit()
+    await session.refresh(document)
     return document_read(document)
 
 
@@ -669,7 +646,7 @@ async def document_download(
     document_id: UUID,
 ) -> tuple[Path, str, str]:
     document = await get_document_entity(session, document_id)
-    path = _document_directory() / Path(document.file_path).name
+    path = upload_path("customer-documents", document.file_path)
     if not path.is_file():
         raise AppError(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -695,7 +672,7 @@ async def delete_document(
             detail="Suspend the customer before removing an approved standard document.",
             code="verified_document_locked",
         )
-    path = _document_directory() / Path(document.file_path).name
+    path = upload_path("customer-documents", document.file_path)
     await session.delete(document)
     await session.commit()
     path.unlink(missing_ok=True)

@@ -1,0 +1,11 @@
+.git
+.env
+.env.prod
+.pnpm-store
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+**/dist
+apps/api/uploads

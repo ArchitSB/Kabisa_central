@@ -32,6 +32,7 @@ PERMISSION_CODES_BY_GROUP: dict[str, tuple[str, ...]] = {
         "roles.manage",
         "settings.view",
         "settings.manage",
+        "audit.view",
     ),
     "catalog": (
         "categories.view",
@@ -168,10 +169,10 @@ ROLE_PERMISSION_CODES: dict[str, frozenset[str]] = {
     ),
 }
 
-EXPECTED_PERMISSION_COUNT = 55
+EXPECTED_PERMISSION_COUNT = 56
 EXPECTED_MAPPING_COUNTS = {
-    "super_admin": 55,
-    "manager": 49,
+    "super_admin": 56,
+    "manager": 50,
     "sales": 11,
     "inventory": 12,
     "accounts": 7,

@@ -4,10 +4,10 @@ Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
 workspace for catalog, inventory, customers, orders, delivery, payments,
 coupons, dashboards, and reporting.
 
-This repository contains the Phase 0 foundation, Phase 1 authentication/RBAC,
-the Phase 2 catalog/inventory module, Phase 3 customer verification, and the
-live Phase 4 order, payment, allocation, and delivery workspace, and the Phase 5
-coupon, live dashboard, and reporting module. All operational workflows and
+This repository contains the complete Phase 0–5 operational workspace and the
+Phase 6 production-hardening layer: immutable audit trails, security controls,
+integrity checks, structured observability, optimized query indexes, production
+containers, backups, and handoff documentation. All operational workflows and
 aggregates use PostgreSQL.
 
 ## Requirements
@@ -54,6 +54,7 @@ corepack prepare pnpm@10.14.0 --activate
    - API docs: `http://localhost:8000/docs`
    - Liveness: `http://localhost:8000/health`
    - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
+   - Audit/integrity workspace: `http://localhost:5173/audit`
 
 4. Configure and seed authentication, catalog/inventory, customers, orders, and coupons.
 
@@ -103,6 +104,8 @@ corepack prepare pnpm@10.14.0 --activate
   `/login` if the session cannot be restored.
 - SQL statement logging is disabled by default. Enable `DB_ECHO` only for
   focused local database debugging.
+- Login, refresh, and authenticated mutations are rate-limited. Production
+  configuration rejects wildcard/non-HTTPS CORS origins and weak JWT secrets.
 
 The Phase 1 API is under `/api/v1`:
 
@@ -120,6 +123,36 @@ GET /roles/permissions
 
 All non-authentication management routes independently enforce their required
 permission. Expected API errors use `{ "detail": "...", "code": "..." }`.
+
+## Hardening and operations
+
+Sensitive mutations are recorded in `audit_logs` with actor, entity, request
+context, IP, timestamp, and change context where feasible. Managers and the
+developer super-admin can inspect the read-only **Audit log** screen. The same
+permission gates the read-only `/api/v1/integrity/check` endpoint; the CLI form
+is suitable for deploy checks:
+
+```bash
+python -m app.integrity
+```
+
+Uploads use signature-aware MIME validation, bounded streaming reads, generated
+filenames, and a configured storage root. Regulatory, delivery, and ID evidence
+remains private; only product images use the public static mount. Production
+logs are JSON with request IDs, actor IDs, latency, status, and client IP.
+
+Detailed operational references:
+
+- [server-side route/permission matrix](docs/SECURITY_PERMISSION_MATRIX.md)
+- [production deployment and TLS guidance](docs/DEPLOYMENT.md)
+- [backup, restore, audit, and incident runbook](docs/OPERATIONS_RUNBOOK.md)
+- [query/index performance record](docs/PERFORMANCE.md)
+- [new developer onboarding](docs/ONBOARDING.md)
+- [accessibility/responsive checklist](docs/ACCESSIBILITY_CHECKLIST.md)
+
+For production, copy `.env.prod.example` to the untracked `.env.prod`, replace
+all placeholders, then use `docker-compose.prod.yml`. The API image runs
+Alembic before startup; PostgreSQL, uploads, and backups use named volumes.
 
 ## Catalog and inventory
 
@@ -264,6 +297,7 @@ pnpm build
 ruff check apps/api
 black --check apps/api
 pytest apps/api/tests
+alembic -c apps/api/alembic.ini check
 ```
 
 Backend tests use the isolated database configured by `TEST_DATABASE_URL` and
@@ -276,6 +310,7 @@ apps/api/          FastAPI, async SQLAlchemy, and Alembic
 apps/admin-web/    React 18, Vite, Tailwind, and shadcn-style primitives
 packages/shared/   generated OpenAPI types destination
 design-system/     quantified Kabisa design DNA and global design rules
+docs/              security, performance, deploy, operations, onboarding
 ```
 
 The design source of truth is

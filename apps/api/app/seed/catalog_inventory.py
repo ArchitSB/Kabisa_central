@@ -746,6 +746,43 @@ class CatalogSeedResult:
     settings: int
 
 
+@dataclass(frozen=True, slots=True)
+class CatalogReferenceSeedResult:
+    price_tiers: int
+    warehouses: int
+    categories: int
+    brands: int
+    settings: int
+
+
+async def seed_catalog_reference() -> CatalogReferenceSeedResult:
+    """Reconcile production-safe reference data without demo transactions."""
+    async with async_session_factory() as session, session.begin():
+        admin = await session.scalar(
+            select(AdminUser)
+            .join(Role)
+            .where(
+                Role.name == "super_admin",
+                AdminUser.is_active.is_(True),
+                AdminUser.deleted_at.is_(None),
+            )
+        )
+        if admin is None:
+            raise RuntimeError("Seed auth/RBAC before seeding catalog reference data.")
+        tiers = await _seed_price_tiers(session, admin)
+        warehouses = await _seed_warehouses(session, admin)
+        categories = await _seed_categories(session, admin)
+        brands = await _seed_brands(session, admin)
+        await _seed_settings(session, admin)
+    return CatalogReferenceSeedResult(
+        price_tiers=len(tiers),
+        warehouses=len(warehouses),
+        categories=len(categories),
+        brands=len(brands),
+        settings=len(SETTINGS),
+    )
+
+
 async def seed_catalog_inventory() -> CatalogSeedResult:
     async with async_session_factory() as session, session.begin():
         admin = await session.scalar(

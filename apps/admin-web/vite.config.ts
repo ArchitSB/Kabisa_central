@@ -22,6 +22,7 @@ export default defineConfig({
           framework: ["react", "react-dom", "react-router-dom", "zustand"],
           motion: ["motion/react"],
           query: ["@tanstack/react-query"],
+          charts: ["recharts"],
         },
       },
     },

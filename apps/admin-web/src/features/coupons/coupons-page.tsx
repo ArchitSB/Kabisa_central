@@ -128,7 +128,7 @@ export function CouponsPage() {
           canEdit ? (
             <button
               type="button"
-              className="cursor-pointer"
+              className="inline-flex min-h-10 cursor-pointer items-center rounded-full"
               aria-label={`${row.original.is_active ? "Deactivate" : "Activate"} ${row.original.code}`}
               onClick={() => toggle.mutate(row.original)}
             >

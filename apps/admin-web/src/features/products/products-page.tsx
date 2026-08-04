@@ -234,6 +234,7 @@ export function ProductsPage() {
           canEdit ? (
             <button
               type="button"
+              className="inline-flex min-h-10 min-w-11 items-center justify-center rounded-full"
               aria-label={`Set ${row.original.name} ${row.original.is_active ? "inactive" : "active"}`}
               onClick={() =>
                 update.mutate({ product: row.original, active: !row.original.is_active })

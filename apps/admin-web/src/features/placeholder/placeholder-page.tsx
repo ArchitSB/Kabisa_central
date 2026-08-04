@@ -1,31 +1,21 @@
-import { ArrowRight, Blocks, CheckCircle2 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Blocks, CheckCircle2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { copy } from "@/lib/copy";
 
-const moduleNames: Record<string, { title: string; phase: string }> = {
-  "/products": { title: "Products", phase: "Phase 2" },
-  "/inventory": { title: "Inventory", phase: "Phase 2" },
-  "/categories": { title: "Categories", phase: "Phase 2" },
-  "/brands": { title: "Brands", phase: "Phase 2" },
-  "/customers": { title: "Customers", phase: "Phase 3" },
-  "/delivery-agents": { title: "Delivery agents", phase: "Phase 4" },
-  "/coupons": { title: "Coupons", phase: "Phase 5" },
-  "/reports": { title: "Reports", phase: "Phase 5" },
-  "/roles": { title: "Roles & permissions", phase: "Phase 1" },
-  "/settings": { title: "Settings", phase: "Phase 5" },
+const moduleNames: Record<string, { title: string; area: string }> = {
+  "/settings": { title: "Settings", area: "Configuration" },
 };
 
 export function PlaceholderPage() {
   const { pathname } = useLocation();
-  const module = moduleNames[pathname] ?? { title: "Module", phase: "Upcoming phase" };
+  const module = moduleNames[pathname] ?? { title: "Module", area: "Administration" };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={`${copy.placeholder.eyebrow} · ${module.phase}`}
+        eyebrow={`${copy.placeholder.eyebrow} · ${module.area}`}
         title={`${module.title} ${copy.placeholder.titleSuffix}`}
         subtitle={copy.placeholder.subtitle}
       />
@@ -36,24 +26,23 @@ export function PlaceholderPage() {
               <Blocks aria-hidden="true" className="size-6" />
             </span>
             <h2 className="mt-6 max-w-md font-display text-2xl font-semibold tracking-tight">
-              The shared foundation is already doing the repetitive work.
+              Production settings stay controlled and reviewable.
             </h2>
             <p className="mt-3 max-w-lg text-sm leading-6 text-secondary">
-              This module inherits Kabisa tokens, the responsive shell, status language,
-              forms, drawers, tables, focus handling, and reduced-motion behavior when its
-              phase begins.
+              Currency, inventory thresholds, company identity, and reporting defaults come
+              from the settings table. Deployment secrets remain environment-only.
             </p>
           </div>
           <div className="flex flex-col justify-center p-8 lg:p-12">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary-700">
-              Foundation included
+              Managed configuration
             </p>
             <ul className="mt-5 space-y-4">
               {[
-                "Responsive navigation and page hierarchy",
-                "Filter, bulk-action, data table, and pagination patterns",
-                "Accessible drawer forms with validation",
-                "Semantic status badges and restrained motion",
+                "TZS currency and stock thresholds",
+                "Company identity for report headers",
+                "Environment-only authentication secrets",
+                "Changes applied through reviewed operations",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-3 text-sm font-medium">
                   <CheckCircle2 aria-hidden="true" className="size-5 text-success" />
@@ -61,12 +50,10 @@ export function PlaceholderPage() {
                 </li>
               ))}
             </ul>
-            <Button asChild className="mt-8 w-fit">
-              <Link to="/orders">
-                Inspect the list pattern
-                <ArrowRight aria-hidden="true" />
-              </Link>
-            </Button>
+            <p className="mt-8 max-w-xl text-sm leading-6 text-secondary">
+              See the operations runbook for safe configuration, migration, backup, and
+              restore procedures.
+            </p>
           </div>
         </div>
       </section>

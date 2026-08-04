@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from pydantic import SecretStr
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -169,7 +169,7 @@ async def list_admin_users(
     sort_name = sort.removeprefix("-")
     if sort_name not in allowed_sort_fields:
         raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The requested sort field is not supported.",
             code="invalid_sort",
         )
@@ -242,6 +242,7 @@ async def create_admin_user(
 
 @router.patch("/{user_id}", response_model=AdminUserRead)
 async def update_admin_user(
+    request: Request,
     user_id: UUID,
     payload: AdminUserUpdate,
     current_user: Annotated[
@@ -252,6 +253,12 @@ async def update_admin_user(
 ) -> AdminUserRead:
     user = await _get_admin_user(session, user_id, for_update=True)
     changed_fields = payload.model_fields_set
+    request.state.audit_changes = {
+        "fields": sorted(field for field in changed_fields if field != "password"),
+        "password_changed": "password" in changed_fields,
+    }
+    if "password" in changed_fields:
+        request.state.audit_action = "admin_user.password_change"
     next_email = (
         _normalize_email(str(payload.email))
         if "email" in changed_fields and payload.email is not None

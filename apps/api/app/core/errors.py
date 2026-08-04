@@ -1,8 +1,12 @@
+import logging
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException
+
+logger = logging.getLogger("kabisa.errors")
 
 
 class AppError(Exception):
@@ -51,4 +55,23 @@ async def http_error_handler(_: Request, exc: HTTPException) -> JSONResponse:
         status_code=exc.status_code,
         content={"detail": detail, "code": "http_error"},
         headers=exc.headers,
+    )
+
+
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception(
+        "unhandled_request_error",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "actor_id": getattr(request.state, "actor_id", None),
+            "method": request.method,
+            "path": request.url.path,
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "The server could not complete the request.",
+            "code": "internal_error",
+        },
     )

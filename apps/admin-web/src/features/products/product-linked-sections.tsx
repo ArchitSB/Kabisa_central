@@ -168,14 +168,14 @@ export function ProductLinkedSections({
               >
                 <img
                   src={uploadUrl(item.file_path) ?? ""}
-                  alt=""
+                  alt={`${product.name}${item.is_primary ? " primary" : ""} product image`}
                   className="aspect-square w-full rounded-lg object-contain"
                 />
                 <div className="mt-2 flex items-center justify-between">
                   <button
                     type="button"
                     disabled={!canEdit || item.is_primary}
-                    className="rounded-md p-1 text-secondary hover:bg-primary-50 hover:text-primary-800 disabled:text-primary-700"
+                    className="flex size-10 items-center justify-center rounded-md text-secondary hover:bg-primary-50 hover:text-primary-800 disabled:text-primary-700"
                     aria-label={item.is_primary ? "Primary image" : "Set as primary image"}
                     onClick={() => imageUpdate.mutate({ id: item.id, primary: true })}
                   >
@@ -188,7 +188,7 @@ export function ProductLinkedSections({
                   {canEdit ? (
                     <button
                       type="button"
-                      className="rounded-md p-1 text-secondary hover:bg-danger-surface hover:text-danger"
+                      className="flex size-10 items-center justify-center rounded-md text-secondary hover:bg-danger-surface hover:text-danger"
                       aria-label="Delete image"
                       onClick={() => imageDelete.mutate(item.id)}
                     >

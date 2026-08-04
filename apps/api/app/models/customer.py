@@ -90,6 +90,7 @@ class Customer(
     __table_args__ = (
         Index("ix_customers_phone", "phone"),
         Index("ix_customers_email", "email"),
+        Index("ix_customers_status_created_at", "status", "created_at"),
         CheckConstraint(
             "credit_limit IS NULL OR credit_limit >= 0",
             name="ck_customers_credit_limit_nonnegative",

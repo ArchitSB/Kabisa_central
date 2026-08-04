@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import status
 from sqlalchemy import func, or_, select, update
@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.errors import AppError
+from app.core.uploads import JPEG, PNG, WEBP, store_upload, upload_path
 from app.models import (
     AdminUser,
     Brand,
@@ -921,19 +922,6 @@ async def verify_product(
     )
 
 
-def _product_upload_dir() -> Path:
-    configured = Path(settings.uploads_dir)
-    if configured.is_absolute():
-        base = configured
-    elif configured.parts[:2] == ("apps", "api"):
-        base = Path(__file__).resolve().parents[4] / configured
-    else:
-        base = Path(__file__).resolve().parents[2] / configured
-    path = base / "products"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
 async def add_product_image(
     session: AsyncSession,
     product_id: UUID,
@@ -946,20 +934,6 @@ async def add_product_image(
     current_user: AdminUser,
 ) -> ProductImageRead:
     await get_product_record(session, product_id)
-    allowed = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-    extension = allowed.get(content_type)
-    if extension is None:
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Product images must be JPEG, PNG, or WebP.",
-            code="invalid_image_type",
-        )
-    if not content or len(content) > settings.max_product_image_bytes:
-        raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The product image is empty or exceeds the configured size limit.",
-            code="invalid_image_size",
-        )
     existing_count = await session.scalar(
         select(func.count()).select_from(ProductImage).where(ProductImage.product_id == product_id)
     )
@@ -971,9 +945,21 @@ async def add_product_image(
             .values(is_primary=False)
         )
         await session.flush()
-    stored_name = f"{product_id}-{uuid4().hex}{extension}"
-    file_path = _product_upload_dir() / stored_name
-    file_path.write_bytes(content)
+    stored_reference = store_upload(
+        "products",
+        content_type=content_type,
+        content=content,
+        allowed={"image/jpeg": JPEG, "image/png": PNG, "image/webp": WEBP},
+        max_bytes=settings.max_product_image_bytes,
+        type_detail="Product images must be JPEG, PNG, or WebP.",
+        type_code="invalid_image_type",
+        size_detail="The product image is empty or exceeds the configured size limit.",
+        size_code="invalid_image_size",
+        content_detail="The file content does not match its declared image type.",
+        content_code="invalid_image_content",
+        filename_prefix=str(product_id),
+    )
+    stored_name = Path(stored_reference).name
     image = ProductImage(
         product_id=product_id,
         file_path=f"/uploads/products/{stored_name}",
@@ -1045,5 +1031,5 @@ async def delete_product_image(session: AsyncSession, image_id: UUID) -> None:
             replacement.is_primary = True
     await session.commit()
     if relative_path.startswith("/uploads/products/"):
-        candidate = _product_upload_dir() / Path(relative_path).name
+        candidate = upload_path("products", relative_path)
         candidate.unlink(missing_ok=True)

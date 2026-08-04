@@ -82,7 +82,7 @@ async def _permissions_for_codes(
     unknown_codes = sorted(unique_codes - found_codes)
     if unknown_codes:
         raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Unknown permission codes: {', '.join(unknown_codes)}.",
             code="unknown_permission",
         )
@@ -152,7 +152,7 @@ async def list_roles(
     sort_name = sort.removeprefix("-")
     if sort_name not in allowed_sort_fields:
         raise AppError(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The requested sort field is not supported.",
             code="invalid_sort",
         )

@@ -5,9 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.deps import require_permission
 from app.core.errors import AppError
+from app.core.uploads import read_upload_limited
 from app.models import AdminUser, OrderPaymentStatus, OrderStatus
 from app.schemas import (
     BulkOrderResult,
@@ -255,7 +257,12 @@ async def deliver_order(
         session,
         order_id,
         content_type=proof.content_type or "application/octet-stream",
-        content=await proof.read(),
+        content=await read_upload_limited(
+            proof,
+            max_bytes=settings.max_delivery_proof_bytes,
+            detail="The delivery proof exceeds the configured size limit.",
+            code="invalid_proof_size",
+        ),
         notes=notes,
         current_user=current_user,
     )

@@ -240,4 +240,5 @@ async def review_document(
     document.reviewed_at = datetime.now(UTC)
     document.updated_by = current_user.id
     await session.commit()
+    await session.refresh(document)
     return customer_service.document_read(document)
