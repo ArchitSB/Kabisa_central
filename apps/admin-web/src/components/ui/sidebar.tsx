@@ -15,6 +15,7 @@ import {
   Store,
   Tags,
   Truck,
+  FileClock,
   UserRoundCog,
   Warehouse as WarehouseIcon,
   X,
@@ -91,6 +92,12 @@ const navigation: Array<{ label: string; items: NavItem[] }> = [
         href: "/reports",
         icon: ChartNoAxesCombined,
         permission: "reports.view",
+      },
+      {
+        label: "Audit log",
+        href: "/audit",
+        icon: FileClock,
+        permission: "audit.view",
       },
       {
         label: "Admin users",

@@ -162,6 +162,18 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            element: <PermissionGuard permission="audit.view" />,
+            children: [
+              {
+                path: "/audit",
+                lazy: async () => {
+                  const { AuditPage } = await import("@/features/audit/audit-page");
+                  return { Component: AuditPage };
+                },
+              },
+            ],
+          },
+          {
             element: <PermissionGuard permission="admin_users.view" />,
             children: [
               {

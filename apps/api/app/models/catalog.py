@@ -385,6 +385,18 @@ class ProductBatch(
         Index("ix_product_batches_warehouse_id", "warehouse_id"),
         Index("ix_product_batches_expiry_date", "expiry_date"),
         Index(
+            "ix_product_batches_warehouse_status_expiry",
+            "warehouse_id",
+            "status",
+            "expiry_date",
+        ),
+        Index(
+            "ix_product_batches_product_status_expiry",
+            "product_id",
+            "status",
+            "expiry_date",
+        ),
+        Index(
             "uq_product_batches_product_warehouse_number",
             "product_id",
             "warehouse_id",
@@ -448,6 +460,18 @@ class StockMovement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_stock_movements_batch_id", "batch_id"),
         Index("ix_stock_movements_warehouse_id", "warehouse_id"),
         Index("ix_stock_movements_created_at", "created_at"),
+        Index(
+            "ix_stock_movements_warehouse_type_created",
+            "warehouse_id",
+            "movement_type",
+            "created_at",
+        ),
+        Index(
+            "ix_stock_movements_batch_type_created",
+            "batch_id",
+            "movement_type",
+            "created_at",
+        ),
         CheckConstraint("quantity <> 0", name="ck_stock_movements_quantity_nonzero"),
     )
 

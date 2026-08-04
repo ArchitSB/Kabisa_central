@@ -84,6 +84,10 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin, SoftDeleteMixin
     __table_args__ = (
         Index("ix_orders_order_number", "order_number", unique=True),
         Index("ix_orders_created_at", "created_at"),
+        Index("ix_orders_status_created_at", "status", "created_at"),
+        Index("ix_orders_payment_status_created_at", "payment_status", "created_at"),
+        Index("ix_orders_customer_created_at", "customer_id", "created_at"),
+        Index("ix_orders_warehouse_created_at", "warehouse_id", "created_at"),
         CheckConstraint("subtotal >= 0", name="ck_orders_subtotal_nonnegative"),
         CheckConstraint("discount_total >= 0", name="ck_orders_discount_nonnegative"),
         CheckConstraint("tax_total >= 0", name="ck_orders_tax_nonnegative"),
@@ -248,6 +252,8 @@ class Payment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "payments"
     __table_args__ = (
         Index("ix_payments_order_id", "order_id"),
+        Index("ix_payments_order_status", "order_id", "status"),
+        Index("ix_payments_status_created_at", "status", "created_at"),
         CheckConstraint("amount > 0", name="ck_payments_amount_positive"),
     )
 

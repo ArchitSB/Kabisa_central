@@ -4,6 +4,15 @@ from app.schemas.admin_users import (
     AdminUserRead,
     AdminUserUpdate,
 )
+from app.schemas.audit import (
+    AuditActorRead,
+    AuditLogListResponse,
+    AuditLogRead,
+    AuditOption,
+    AuditOptions,
+    IntegrityCheckRead,
+    IntegrityViolation,
+)
 from app.schemas.auth import (
     AccessTokenResponse,
     CurrentUserResponse,
@@ -128,6 +137,11 @@ __all__ = [
     "AdminUserListResponse",
     "AdminUserRead",
     "AdminUserUpdate",
+    "AuditActorRead",
+    "AuditLogListResponse",
+    "AuditLogRead",
+    "AuditOption",
+    "AuditOptions",
     "CurrentUserResponse",
     "LoginRequest",
     "LoginResponse",
@@ -197,6 +211,8 @@ __all__ = [
     "DeliveryRead",
     "InventoryListResponse",
     "InventorySummaryRead",
+    "IntegrityCheckRead",
+    "IntegrityViolation",
     "OrderHistoryPlaceholder",
     "OrderActionNote",
     "OrderCreate",

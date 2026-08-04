@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.v1.routes.admin_users import router as admin_users_router
+from app.api.v1.routes.audit import router as audit_router
 from app.api.v1.routes.auth import router as auth_router
 from app.api.v1.routes.brands import router as brands_router
 from app.api.v1.routes.catalog_settings import router as catalog_settings_router
@@ -14,6 +15,7 @@ from app.api.v1.routes.dashboard import router as dashboard_router
 from app.api.v1.routes.deliveries import router as deliveries_router
 from app.api.v1.routes.delivery_agents import router as delivery_agents_router
 from app.api.v1.routes.health import router as health_router
+from app.api.v1.routes.integrity import router as integrity_router
 from app.api.v1.routes.inventory import router as inventory_router
 from app.api.v1.routes.orders import router as orders_router
 from app.api.v1.routes.payments import router as payments_router
@@ -23,14 +25,16 @@ from app.api.v1.routes.products import router as products_router
 from app.api.v1.routes.reports import router as reports_router
 from app.api.v1.routes.roles import router as roles_router
 from app.api.v1.routes.warehouses import router as warehouses_router
+from app.services.audit_service import audit_request
 
-api_router = APIRouter()
+api_router = APIRouter(dependencies=[Depends(audit_request)])
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(
     admin_users_router,
     prefix="/admin-users",
     tags=["admin users"],
 )
+api_router.include_router(audit_router, prefix="/audit", tags=["audit"])
 api_router.include_router(roles_router, prefix="/roles", tags=["roles"])
 api_router.include_router(health_router, prefix="/health", tags=["health"])
 api_router.include_router(warehouses_router, prefix="/warehouses", tags=["warehouses"])
@@ -61,6 +65,7 @@ api_router.include_router(
     tags=["product batches"],
 )
 api_router.include_router(inventory_router, prefix="/inventory", tags=["inventory"])
+api_router.include_router(integrity_router, prefix="/integrity", tags=["integrity"])
 api_router.include_router(orders_router, prefix="/orders", tags=["orders"])
 api_router.include_router(payments_router, prefix="/payments", tags=["payments"])
 api_router.include_router(
