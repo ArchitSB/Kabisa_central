@@ -4,8 +4,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.deps import require_permission
+from app.core.uploads import read_upload_limited
 from app.models import AdminUser, BusinessType, CustomerDocumentType, CustomerStatus, PaymentTerms
 from app.schemas import (
     CustomerAddressCreate,
@@ -198,7 +200,12 @@ async def upload_customer_document(
     file: Annotated[UploadFile, File()],
     doc_type: Annotated[CustomerDocumentType, Form()],
 ) -> CustomerDocumentRead:
-    content = await file.read()
+    content = await read_upload_limited(
+        file,
+        max_bytes=settings.max_customer_document_bytes,
+        detail="The customer document exceeds the configured size limit.",
+        code="invalid_document_size",
+    )
     return await customer_service.upload_document(
         session,
         customer_id,

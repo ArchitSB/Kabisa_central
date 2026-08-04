@@ -4,8 +4,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.deps import require_permission
+from app.core.uploads import read_upload_limited
 from app.models import AdminUser, ProductType, VerificationStatus
 from app.schemas import (
     ProductCreate,
@@ -127,7 +129,12 @@ async def add_product_image(
     is_primary: Annotated[bool, Form()] = False,
     sort_order: Annotated[int, Form(ge=0)] = 0,
 ) -> ProductImageRead:
-    content = await file.read()
+    content = await read_upload_limited(
+        file,
+        max_bytes=settings.max_product_image_bytes,
+        detail="The product image exceeds the configured size limit.",
+        code="invalid_image_size",
+    )
     return await catalog_service.add_product_image(
         session,
         product_id,

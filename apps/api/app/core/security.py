@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
+from uuid import uuid4
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -53,6 +54,7 @@ def _create_token(
         "sub": subject,
         "role": role,
         "type": token_type,
+        "jti": str(uuid4()),
         "iat": issued_at,
         "exp": issued_at + expires_delta,
     }
