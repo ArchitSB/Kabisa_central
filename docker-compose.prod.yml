@@ -1,0 +1,95 @@
+name: kabisa-production
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres18_prod_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: ${KABISA_ENV_FILE:-.env.prod}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      UPLOADS_DIR: /var/lib/kabisa/uploads
+    volumes:
+      - uploads_prod_data:/var/lib/kabisa/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/admin-web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_ENABLE_ROLE_SWITCHER: "false"
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/nginx-health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  postgres-backup:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - postgres_backup_data:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        while true; do
+          stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+          pg_dump --format=custom --file="/backups/kabisa-$${stamp}.dump"
+          find /backups -type f -name 'kabisa-*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
+          sleep "$${BACKUP_INTERVAL_SECONDS}"
+        done
+
+volumes:
+  postgres18_prod_data:
+  postgres_backup_data:
+  uploads_prod_data:
