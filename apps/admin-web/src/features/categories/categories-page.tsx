@@ -1,13 +1,18 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, GitBranch, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, GitBranch, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -21,11 +26,12 @@ import {
 import type { Category } from "@/features/catalog/types";
 import { useHasPermission } from "@/features/auth/auth-store";
 import { getApiErrorDetail } from "@/lib/api-errors";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 export function CategoriesPage() {
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState<Category | null>(null);
-  const deferredSearch = useDeferredValue(search.trim());
+  const deferredSearch = useDebouncedValue(search.trim());
   const canCreate = useHasPermission("categories.create");
   const canEdit = useHasPermission("categories.edit");
   const canDelete = useHasPermission("categories.delete");
@@ -33,6 +39,7 @@ export function CategoriesPage() {
   const query = useQuery({
     queryKey: ["categories", deferredSearch],
     queryFn: () => listCategories(deferredSearch),
+    placeholderData: keepPreviousData,
   });
   const remove = useMutation({
     mutationFn: deleteCategory,
@@ -231,18 +238,12 @@ export function CategoriesPage() {
         }
       />
       <section className="surface-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-          />
-          <Input
-            type="search"
-            className="pl-10"
+        <div className="w-full sm:max-w-md">
+          <SearchInput
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onValueChange={setSearch}
             placeholder="Search categories"
-            aria-label="Search categories"
+            ariaLabel="Search categories"
           />
         </div>
         <span className="text-sm text-secondary">

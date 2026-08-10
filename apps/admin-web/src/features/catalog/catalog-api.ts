@@ -56,6 +56,10 @@ export async function saveWarehouse(payload: WarehousePayload, id?: string) {
 export async function deleteWarehouse(id: string) {
   await apiClient.delete(`/warehouses/${id}`);
 }
+export async function setPrimaryWarehouse(id: string) {
+  const response = await apiClient.post<Warehouse>(`/warehouses/${id}/set-primary`);
+  return response.data;
+}
 
 export async function listCategories(search = ""): Promise<ListResponse<Category>> {
   const response = await apiClient.get<ListResponse<Category>>("/categories", {
@@ -211,6 +215,9 @@ export async function adjustBatch(id: string, delta: number, note: string) {
     note,
   });
   return response.data;
+}
+export async function deleteBatch(id: string) {
+  await apiClient.delete(`/product-batches/${id}`);
 }
 
 export async function getInventorySummary(warehouseId?: string): Promise<InventorySummary> {

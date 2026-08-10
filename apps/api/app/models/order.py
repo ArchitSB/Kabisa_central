@@ -90,6 +90,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin, SoftDeleteMixin
         Index("ix_orders_warehouse_created_at", "warehouse_id", "created_at"),
         CheckConstraint("subtotal >= 0", name="ck_orders_subtotal_nonnegative"),
         CheckConstraint("discount_total >= 0", name="ck_orders_discount_nonnegative"),
+        CheckConstraint("coupon_discount >= 0", name="ck_orders_coupon_discount_nonnegative"),
         CheckConstraint("tax_total >= 0", name="ck_orders_tax_nonnegative"),
         CheckConstraint("total_amount >= 0", name="ck_orders_total_nonnegative"),
     )

@@ -1,20 +1,25 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Check, Eye, RotateCcw, Search } from "lucide-react";
+import { Check, Eye, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
-import { Input } from "@/components/ui/input";
+import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listFeedback, setFeedbackHandled } from "@/features/customers/customers-api";
 import type { CustomerFeedback } from "@/features/customers/types";
 import { getApiErrorDetail } from "@/lib/api-errors";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const dateFormatter = new Intl.DateTimeFormat("en-TZ", {
   dateStyle: "medium",
@@ -24,7 +29,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-TZ", {
 export function CustomerFeedbackPage() {
   const [search, setSearch] = useState("");
   const [handled, setHandled] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
+  const deferredSearch = useDebouncedValue(search.trim());
   const queryClient = useQueryClient();
   const feedback = useQuery({
     queryKey: ["customer-feedback", deferredSearch, handled],
@@ -33,6 +38,7 @@ export function CustomerFeedbackPage() {
         search: deferredSearch || undefined,
         is_handled: handled === "" ? undefined : handled === "true",
       }),
+    placeholderData: keepPreviousData,
   });
   const update = useMutation({
     mutationFn: ({ id, isHandled }: { id: string; isHandled: boolean }) =>
@@ -151,20 +157,12 @@ export function CustomerFeedbackPage() {
       />
       <FilterBar className="[&>div:last-child]:xl:grid-cols-[minmax(260px,1fr)_220px_auto]">
         <FilterField label="Search" htmlFor="feedback-search">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            />
-            <Input
-              id="feedback-search"
-              type="search"
-              className="pl-10"
-              placeholder="Customer, subject, message"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
+          <SearchInput
+            id="feedback-search"
+            placeholder="Customer, subject, message"
+            value={search}
+            onValueChange={setSearch}
+          />
         </FilterField>
         <FilterField label="Status" htmlFor="feedback-status">
           <select

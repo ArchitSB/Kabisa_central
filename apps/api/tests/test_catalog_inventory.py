@@ -18,8 +18,14 @@ from app.models import (
     VerificationStatus,
     Warehouse,
 )
-from app.schemas.catalog import ProductPriceInput, ProductPricesUpsert
+from app.schemas.catalog import (
+    ProductPriceInput,
+    ProductPricesUpsert,
+    WarehouseCreate,
+    WarehouseUpdate,
+)
 from app.schemas.inventory import BatchAdjust, BatchCreate
+from app.services import bulk_service, catalog_service
 from app.services.inventory_service import (
     adjust_batch,
     calculate_product_stock,
@@ -209,3 +215,109 @@ async def test_batch_adjustment_writes_movements_and_prevents_negative_stock(
         assert adjusted.quantity_available == 0
         assert adjusted.status == BatchStatus.DEPLETED
         assert movement_count == 2
+
+
+async def test_primary_warehouse_is_unique_active_and_cannot_be_removed(
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with test_session_factory() as session:
+        role = Role(name="warehouse_controls", description="Warehouse controls")
+        session.add(role)
+        await session.flush()
+        user = AdminUser(
+            name="Warehouse Tester",
+            email="warehouse-controls@kabisa.co.tz",
+            password_hash="not-used",
+            role_id=role.id,
+            is_active=True,
+        )
+        session.add(user)
+        await session.flush()
+        first = await catalog_service.create_warehouse(
+            session,
+            WarehouseCreate(
+                name="First",
+                code="FIRST",
+                address="First address",
+                region="Dar es Salaam",
+                is_primary=False,
+                is_active=True,
+            ),
+            user,
+        )
+        second = await catalog_service.create_warehouse(
+            session,
+            WarehouseCreate(
+                name="Second",
+                code="SECOND",
+                address="Second address",
+                region="Dar es Salaam",
+                is_primary=False,
+                is_active=True,
+            ),
+            user,
+        )
+        assert first.is_primary is True
+        assert second.is_primary is False
+
+        primary = await catalog_service.set_primary_warehouse(session, second.id, user)
+        previous = await catalog_service.get_warehouse(session, first.id)
+        assert primary.is_primary is True
+        assert primary.is_active is True
+        assert previous.is_primary is False
+
+        with pytest.raises(AppError) as deactivate:
+            await catalog_service.update_warehouse(
+                session,
+                second.id,
+                WarehouseUpdate(is_active=False),
+                user,
+            )
+        assert deactivate.value.code == "primary_warehouse_required"
+        with pytest.raises(AppError) as remove:
+            await catalog_service.delete_warehouse(session, second.id, user)
+        assert remove.value.code == "primary_warehouse_required"
+
+
+async def test_bulk_executor_commits_valid_items_and_skips_invalid_items(
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with test_session_factory() as session:
+        first = Warehouse(
+            name="Protected",
+            code="BULK_PROTECTED",
+            address="Address",
+            region="Dar es Salaam",
+            is_primary=True,
+            is_active=True,
+        )
+        second = Warehouse(
+            name="Changeable",
+            code="BULK_CHANGEABLE",
+            address="Address",
+            region="Dar es Salaam",
+            is_primary=False,
+            is_active=True,
+        )
+        session.add_all([first, second])
+        await session.commit()
+
+        async def deactivate(warehouse_id):
+            warehouse = await catalog_service.get_warehouse(session, warehouse_id)
+            if warehouse.is_primary:
+                raise AppError(
+                    status_code=409,
+                    detail="Primary warehouse is protected.",
+                    code="primary_warehouse_required",
+                )
+            warehouse.is_active = False
+
+        result = await bulk_service.apply_bulk(
+            session,
+            action="deactivate",
+            ids=[first.id, second.id],
+            handler=deactivate,
+        )
+        assert (result.applied, result.skipped, result.failed) == (1, 1, 0)
+        await session.refresh(second)
+        assert second.is_active is False

@@ -1,12 +1,18 @@
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RotateCcw, Search } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { Download, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
@@ -15,7 +21,8 @@ import { useHasPermission } from "@/features/auth/auth-store";
 import { CreateOrderDrawer } from "@/features/orders/create-order-drawer";
 import { getOrderColumns } from "@/features/orders/order-columns";
 import {
-  bulkOrderStatus,
+  deleteOrder,
+  listDeliveryAgents,
   listOrders,
   type OrderFilters,
 } from "@/features/orders/orders-api";
@@ -26,6 +33,8 @@ import type {
 } from "@/features/orders/orders.data";
 import { orderStatusLabels } from "@/features/orders/orders.data";
 import { getApiErrorDetail } from "@/lib/api-errors";
+import { bulkResultMessage, downloadSection, runBulkAction } from "@/lib/data-controls";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "ALL" | OrderStatus;
@@ -48,11 +57,15 @@ export function OrdersPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [selected, setSelected] = useState<OrderSummary[]>([]);
-  const deferredSearch = useDeferredValue(search.trim());
+  const [deleting, setDeleting] = useState<OrderSummary | null>(null);
+  const deferredSearch = useDebouncedValue(search.trim());
   const canCreate = useHasPermission("orders.create");
   const canApprove = useHasPermission("orders.approve");
   const canCancel = useHasPermission("orders.cancel");
   const canStatus = useHasPermission("orders.status");
+  const canAssign = useHasPermission("deliveries.assign");
+  const canDelete = useHasPermission("orders.cancel");
+  const canExport = useHasPermission("reports.export");
   const queryClient = useQueryClient();
   const filters: OrderFilters = {
     search: deferredSearch || undefined,
@@ -65,6 +78,7 @@ export function OrdersPage() {
   const orders = useQuery({
     queryKey: ["orders", filters],
     queryFn: () => listOrders(filters),
+    placeholderData: keepPreviousData,
   });
   const settings = useQuery({
     queryKey: ["catalog-settings"],
@@ -74,36 +88,89 @@ export function OrdersPage() {
     queryKey: ["warehouses", "order-filter"],
     queryFn: () => listWarehouses(),
   });
+  const agents = useQuery({
+    queryKey: ["delivery-agents", "bulk-options"],
+    queryFn: () => listDeliveryAgents({ is_active: true }),
+    enabled: canAssign,
+  });
   const bulk = useMutation({
-    mutationFn: ({ ids, target }: { ids: string[]; target: OrderStatus }) =>
-      bulkOrderStatus(ids, target),
+    mutationFn: ({ action, value }: { action: string; value?: string }) =>
+      runBulkAction("/orders/bulk", {
+        ids: selected.map((item) => item.id),
+        action,
+        value,
+      }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
       setSelected([]);
-      if (Object.keys(result.failed).length) {
-        toast.warning(`${result.updated.length} orders updated`, {
-          description: `${Object.keys(result.failed).length} could not be changed.`,
-        });
-      } else toast.success(`${result.updated.length} orders updated`);
+      const message = bulkResultMessage(result);
+      if (result.skipped || result.failed)
+        toast.warning(message.title, { description: message.description });
+      else toast.success(message.title);
     },
     onError: (error) =>
       toast.error("Bulk action failed", { description: getApiErrorDetail(error) }),
   });
+  const remove = useMutation({
+    mutationFn: deleteOrder,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setDeleting(null);
+      toast.success("Order removed");
+    },
+    onError: (error) =>
+      toast.error("Order could not be removed", {
+        description: getApiErrorDetail(error),
+      }),
+  });
   const columns = useMemo(
-    () => getOrderColumns(settings.data?.currency ?? "XXX"),
-    [settings.data?.currency],
+    () =>
+      getOrderColumns(settings.data?.currency ?? "XXX", {
+        canDelete,
+        onDelete: setDeleting,
+      }),
+    [canDelete, settings.data?.currency],
   );
   const handleSelection = useCallback((rows: OrderSummary[]) => setSelected(rows), []);
   const actions = [
-    ...(canApprove ? [{ value: "APPROVED", label: "Approve" }] : []),
-    ...(canCancel ? [{ value: "CANCELLED", label: "Cancel" }] : []),
+    ...(canApprove ? [{ value: "approve", label: "Approve" }] : []),
+    ...(canCancel ? [{ value: "cancel", label: "Cancel" }] : []),
     ...(canStatus
       ? [
-          { value: "FAILED", label: "Mark failed" },
-          { value: "UNFOUND", label: "Mark unfound" },
+          { value: "fail", label: "Mark failed" },
+          { value: "unfound", label: "Mark unfound" },
         ]
       : []),
+    ...(canAssign
+      ? [
+          {
+            value: "assign_delivery",
+            label: "Assign delivery agent",
+            options:
+              agents.data?.items.map((agent) => ({
+                value: agent.id,
+                label: agent.name,
+              })) ?? [],
+          },
+        ]
+      : []),
+    ...(canExport ? [{ value: "export", label: "Export selected" }] : []),
   ];
+
+  async function downloadOrders(ids?: string[]) {
+    try {
+      await downloadSection(
+        "/orders/export",
+        { ...filters, ids },
+        ids ? "kabisa-selected-orders.xlsx" : "kabisa-orders.xlsx",
+      );
+      toast.success("Orders downloaded");
+    } catch (error) {
+      toast.error("Orders could not be downloaded", {
+        description: getApiErrorDetail(error),
+      });
+    }
+  }
 
   if (orders.isPending) return <LoadingState label="Loading orders…" />;
   if (orders.isError || !orders.data) {
@@ -118,16 +185,24 @@ export function OrdersPage() {
         title="Orders"
         subtitle="Create verified-customer orders, reserve warehouse stock, reconcile payments, and complete delivery."
         actions={
-          canCreate ? (
-            <CreateOrderDrawer
-              trigger={
-                <Button>
-                  <Plus aria-hidden="true" />
-                  Create order
-                </Button>
-              }
-            />
-          ) : null
+          <>
+            {canExport ? (
+              <Button variant="secondary" onClick={() => downloadOrders()}>
+                <Download aria-hidden="true" />
+                Download
+              </Button>
+            ) : null}
+            {canCreate ? (
+              <CreateOrderDrawer
+                trigger={
+                  <Button>
+                    <Plus aria-hidden="true" />
+                    Create order
+                  </Button>
+                }
+              />
+            ) : null}
+          </>
         }
       />
 
@@ -161,20 +236,12 @@ export function OrdersPage() {
 
       <FilterBar className="[&>div:last-child]:xl:grid-cols-4">
         <FilterField label="Search" htmlFor="order-search">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            />
-            <Input
-              id="order-search"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Order number or customer"
-              className="pl-10"
-            />
-          </div>
+          <SearchInput
+            id="order-search"
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Order number or customer"
+          />
         </FilterField>
         <FilterField label="Payment" htmlFor="payment-status">
           <select
@@ -239,20 +306,21 @@ export function OrdersPage() {
         </div>
       </FilterBar>
 
-      <BulkActionBar
-        selectedCount={selected.length}
-        totalCount={orders.data.total}
-        noun="orders"
-        pending={bulk.isPending}
-        showSort={false}
-        actions={actions}
-        onAction={(target) =>
-          bulk.mutate({
-            ids: selected.map((item) => item.id),
-            target: target as OrderStatus,
-          })
-        }
-      />
+      {actions.length ? (
+        <BulkActionBar
+          selectedCount={selected.length}
+          totalCount={orders.data.total}
+          noun="orders"
+          pending={bulk.isPending}
+          showSort={false}
+          actions={actions}
+          onAction={(action, value) => {
+            if (action === "export") {
+              void downloadOrders(selected.map((item) => item.id));
+            } else bulk.mutate({ action, value });
+          }}
+        />
+      ) : null}
       <DataTable
         ariaLabel="Kabisa orders"
         columns={columns}
@@ -261,6 +329,16 @@ export function OrdersPage() {
         pageSize={10}
         selectable={actions.length > 0}
         onSelectionChange={handleSelection}
+      />
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Remove order?"
+        description="Only pending or cancelled orders without recorded payments can be soft-deleted. Committed orders must remain auditable."
+        confirmLabel="Remove order"
+        destructive
+        pending={remove.isPending}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
       />
     </div>
   );

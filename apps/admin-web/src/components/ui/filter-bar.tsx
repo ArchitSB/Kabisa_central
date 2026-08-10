@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type FilterBarProps = {
@@ -42,6 +43,40 @@ export function FilterField({ label, htmlFor, children, className }: FieldProps)
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+type SearchInputProps = {
+  id?: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  ariaLabel?: string;
+};
+
+export function SearchInput({
+  id,
+  value,
+  onValueChange,
+  placeholder,
+  ariaLabel,
+}: SearchInputProps) {
+  return (
+    <div className="relative">
+      <Search
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+      />
+      <Input
+        id={id}
+        type="search"
+        className="pl-10"
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+      />
     </div>
   );
 }

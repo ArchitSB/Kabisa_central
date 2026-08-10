@@ -1,17 +1,18 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, LoaderCircle, Pencil, Plus, Search, UsersRound } from "lucide-react";
+import { AlertCircle, LoaderCircle, Pencil, Plus, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AdminUserDrawer } from "@/features/admin-users/admin-user-drawer";
 import { type AdminUser, listAdminUsers } from "@/features/admin-users/admin-users-api";
 import { useHasPermission } from "@/features/auth/auth-store";
 import { formatRoleName, getInitials } from "@/lib/utils";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const dateFormatter = new Intl.DateTimeFormat("en-TZ", {
   dateStyle: "medium",
@@ -20,12 +21,13 @@ const dateFormatter = new Intl.DateTimeFormat("en-TZ", {
 
 export function AdminUsersPage() {
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
+  const deferredSearch = useDebouncedValue(search.trim());
   const canCreate = useHasPermission("admin_users.create");
   const canEdit = useHasPermission("admin_users.edit");
   const query = useQuery({
     queryKey: ["admin-users", deferredSearch],
     queryFn: () => listAdminUsers(deferredSearch),
+    placeholderData: keepPreviousData,
   });
   const columns = useMemo<ColumnDef<AdminUser>[]>(
     () => [
@@ -131,18 +133,12 @@ export function AdminUsersPage() {
       />
 
       <section className="surface-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-          />
-          <Input
-            type="search"
+        <div className="w-full sm:max-w-md">
+          <SearchInput
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onValueChange={setSearch}
             placeholder="Search name or email"
-            aria-label="Search administrators"
-            className="pl-10"
+            ariaLabel="Search administrators"
           />
         </div>
         <div className="flex items-center gap-2 text-sm text-secondary">

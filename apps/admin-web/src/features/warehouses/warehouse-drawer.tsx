@@ -159,6 +159,10 @@ export function WarehouseDrawer({
                   <label className="flex items-start gap-3 rounded-control border border-border bg-[#FBFCFB] p-4">
                     <Checkbox
                       checked={field.value}
+                      disabled={Boolean(
+                        warehouse?.is_primary &&
+                        (name === "is_primary" || name === "is_active"),
+                      )}
                       onCheckedChange={(value) => field.onChange(Boolean(value))}
                     />
                     <span>
@@ -167,8 +171,12 @@ export function WarehouseDrawer({
                       </span>
                       <span className="mt-0.5 block text-xs leading-5 text-secondary">
                         {name === "is_primary"
-                          ? "Default location for operational views."
-                          : "Available for receiving and adjustments."}
+                          ? warehouse?.is_primary
+                            ? "Set another row as primary before changing this designation."
+                            : "Default location for operational views."
+                          : warehouse?.is_primary
+                            ? "The primary location must remain active."
+                            : "Available for receiving and adjustments."}
                       </span>
                     </span>
                   </label>
