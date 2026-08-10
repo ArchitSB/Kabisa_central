@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 type BulkActionBarProps = {
   selectedCount: number;
   totalCount: number;
-  actions?: Array<{ value: string; label: string }>;
-  onAction?: (action: string) => void;
+  actions?: Array<{
+    value: string;
+    label: string;
+    options?: Array<{ value: string; label: string }>;
+  }>;
+  onAction?: (action: string, value?: string) => void;
   pending?: boolean;
   noun?: string;
   showSort?: boolean;
@@ -29,6 +33,18 @@ export function BulkActionBar({
   showSort = true,
 }: BulkActionBarProps) {
   const [action, setAction] = useState("");
+  const [value, setValue] = useState("");
+  const selectedAction = useMemo(
+    () => actions.find((item) => item.value === action),
+    [action, actions],
+  );
+
+  useEffect(() => {
+    if (selectedCount === 0) {
+      setAction("");
+      setValue("");
+    }
+  }, [selectedCount]);
   return (
     <div className="flex flex-col gap-3 rounded-control border border-border bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2">
@@ -38,7 +54,10 @@ export function BulkActionBar({
             className="control-base h-9 min-w-[148px] appearance-none py-0 pr-9 text-xs font-semibold"
             disabled={selectedCount === 0}
             value={action}
-            onChange={(event) => setAction(event.target.value)}
+            onChange={(event) => {
+              setAction(event.target.value);
+              setValue("");
+            }}
           >
             <option value="" disabled>
               Bulk action
@@ -54,11 +73,43 @@ export function BulkActionBar({
             className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-muted"
           />
         </div>
+        {selectedAction?.options ? (
+          <div className="relative">
+            <select
+              aria-label={`${selectedAction.label} option`}
+              className="control-base h-9 min-w-[168px] appearance-none py-0 pr-9 text-xs font-semibold"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            >
+              <option value="" disabled>
+                Select option
+              </option>
+              {selectedAction.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-muted"
+            />
+          </div>
+        ) : null}
         <Button
           variant="secondary"
           size="sm"
-          disabled={selectedCount === 0 || !action || pending}
-          onClick={() => onAction?.(action)}
+          disabled={
+            selectedCount === 0 ||
+            !action ||
+            pending ||
+            Boolean(selectedAction?.options && !value)
+          }
+          onClick={() => {
+            onAction?.(action, value || undefined);
+            setAction("");
+            setValue("");
+          }}
         >
           {pending ? "Working…" : "Take action"}
         </Button>

@@ -103,6 +103,10 @@ export function DataTable<TData>({
     onSelectionChange?.(table.getSelectedRowModel().flatRows.map((row) => row.original));
   }, [onSelectionChange, rowSelection, table]);
 
+  useEffect(() => {
+    setRowSelection({});
+  }, [data]);
+
   return (
     <div>
       <div className="surface-card scrollbar-subtle overflow-x-auto">

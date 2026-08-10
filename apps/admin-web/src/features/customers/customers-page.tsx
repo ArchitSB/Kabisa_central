@@ -1,7 +1,12 @@
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Download, Eye, Pencil, Plus, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -9,10 +14,11 @@ import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
+import { DeleteRowAction, RowActions } from "@/components/ui/row-actions";
 import { listPriceTiers } from "@/features/catalog/catalog-api";
 import { useHasPermission } from "@/features/auth/auth-store";
 import { CustomerDrawer } from "@/features/customers/customer-drawer";
@@ -21,11 +27,12 @@ import { businessTypeLabels } from "@/features/customers/customer-options";
 import {
   deleteCustomer,
   listCustomers,
-  submitCustomer,
   type CustomerFilters,
 } from "@/features/customers/customers-api";
 import type { BusinessType, Customer } from "@/features/customers/types";
 import { getApiErrorDetail } from "@/lib/api-errors";
+import { bulkResultMessage, downloadSection, runBulkAction } from "@/lib/data-controls";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const emptyFilters = {
   business_type: "",
@@ -41,11 +48,13 @@ export function CustomersPage() {
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [selected, setSelected] = useState<Customer[]>([]);
   const [deleting, setDeleting] = useState<Customer | null>(null);
-  const deferredSearch = useDeferredValue(search.trim());
+  const [bulkDelete, setBulkDelete] = useState(false);
+  const deferredSearch = useDebouncedValue(search.trim());
   const canCreate = useHasPermission("customers.create");
   const canEdit = useHasPermission("customers.edit");
   const canDelete = useHasPermission("customers.delete");
   const canVerify = useHasPermission("customers.verify");
+  const canExport = useHasPermission("reports.export");
   const queryClient = useQueryClient();
   const params: CustomerFilters = {
     search: deferredSearch || undefined,
@@ -58,6 +67,7 @@ export function CustomersPage() {
   const customers = useQuery({
     queryKey: ["customers", params],
     queryFn: () => listCustomers(params),
+    placeholderData: keepPreviousData,
   });
   const tiers = useQuery({ queryKey: ["price-tiers"], queryFn: listPriceTiers });
   const remove = useMutation({
@@ -72,17 +82,23 @@ export function CustomersPage() {
         description: getApiErrorDetail(error),
       }),
   });
-  const bulkSubmit = useMutation({
-    mutationFn: async (items: Customer[]) => {
-      for (const item of items) await submitCustomer(item.id);
-    },
-    onSuccess: async () => {
+  const bulk = useMutation({
+    mutationFn: (action: string) =>
+      runBulkAction("/customers/bulk", {
+        ids: selected.map((item) => item.id),
+        action,
+      }),
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
       setSelected([]);
-      toast.success("Selected customers submitted for review");
+      setBulkDelete(false);
+      const message = bulkResultMessage(result);
+      if (result.skipped || result.failed)
+        toast.warning(message.title, { description: message.description });
+      else toast.success(message.title);
     },
     onError: (error) =>
-      toast.error("Bulk submission stopped", { description: getApiErrorDetail(error) }),
+      toast.error("Bulk action failed", { description: getApiErrorDetail(error) }),
   });
   const handleSelection = useCallback((rows: Customer[]) => setSelected(rows), []);
   const columns = useMemo<ColumnDef<Customer>[]>(
@@ -150,7 +166,7 @@ export function CustomersPage() {
         enableSorting: false,
         meta: { align: "right" },
         cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
+          <RowActions>
             <Button asChild variant="ghost" size="sm">
               <Link to={`/customers/${row.original.id}`}>
                 <Eye aria-hidden="true" />
@@ -169,32 +185,42 @@ export function CustomersPage() {
               />
             ) : null}
             {canDelete ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                aria-label={`Delete ${row.original.business_name}`}
+              <DeleteRowAction
+                label={`Delete ${row.original.business_name}`}
                 onClick={() => setDeleting(row.original)}
-              >
-                <Trash2 aria-hidden="true" />
-              </Button>
+              />
             ) : null}
-          </div>
+          </RowActions>
         ),
       },
     ],
     [canDelete, canEdit],
   );
 
-  function runBulkAction(action: string) {
-    if (action !== "submit") return;
-    const eligible = selected.filter((item) =>
-      ["PENDING", "REJECTED"].includes(item.status),
-    );
-    if (!eligible.length) {
-      toast.warning("Select pending or rejected customers");
-      return;
+  function handleBulkAction(action: string) {
+    if (action === "delete") setBulkDelete(true);
+    else if (action === "export") {
+      void downloadSection(
+        "/customers/export",
+        { ids: selected.map((item) => item.id) },
+        "kabisa-selected-customers.xlsx",
+      ).catch((error) =>
+        toast.error("Customers could not be downloaded", {
+          description: getApiErrorDetail(error),
+        }),
+      );
+    } else bulk.mutate(action);
+  }
+
+  async function downloadCustomers() {
+    try {
+      await downloadSection("/customers/export", params, "kabisa-customers.xlsx");
+      toast.success("Customers downloaded");
+    } catch (error) {
+      toast.error("Customers could not be downloaded", {
+        description: getApiErrorDetail(error),
+      });
     }
-    bulkSubmit.mutate(eligible);
   }
 
   if (customers.isPending) return <LoadingState label="Loading customers…" />;
@@ -215,6 +241,12 @@ export function CustomersPage() {
         subtitle="Manage Kabisa’s B2B customer base, pricing tiers, verification readiness, and account status."
         actions={
           <>
+            {canExport ? (
+              <Button variant="secondary" onClick={downloadCustomers}>
+                <Download aria-hidden="true" />
+                Download
+              </Button>
+            ) : null}
             {canCreate ? (
               <CustomerDrawer
                 trigger={
@@ -230,20 +262,12 @@ export function CustomersPage() {
       />
       <FilterBar className="[&>div:last-child]:xl:grid-cols-4">
         <FilterField label="Search" htmlFor="customer-search">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            />
-            <Input
-              id="customer-search"
-              type="search"
-              className="pl-10"
-              value={search}
-              placeholder="Name, contact, email, phone"
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
+          <SearchInput
+            id="customer-search"
+            value={search}
+            placeholder="Name, contact, email, phone"
+            onValueChange={setSearch}
+          />
         </FilterField>
         <FilterField label="Business type" htmlFor="customer-type-filter">
           <select
@@ -339,10 +363,21 @@ export function CustomersPage() {
         selectedCount={selected.length}
         totalCount={customers.data.total}
         noun="customers"
-        pending={bulkSubmit.isPending}
+        pending={bulk.isPending}
         showSort={false}
-        actions={canVerify ? [{ value: "submit", label: "Submit for review" }] : []}
-        onAction={runBulkAction}
+        actions={[
+          ...(canVerify
+            ? [
+                { value: "submit", label: "Submit for review" },
+                { value: "verify", label: "Verify doc-ready" },
+                { value: "suspend", label: "Suspend customers" },
+                { value: "reinstate", label: "Reinstate customers" },
+              ]
+            : []),
+          ...(canDelete ? [{ value: "delete", label: "Delete customers" }] : []),
+          ...(canExport ? [{ value: "export", label: "Export selected" }] : []),
+        ]}
+        onAction={handleBulkAction}
       />
       <DataTable
         ariaLabel="Kabisa customers"
@@ -350,7 +385,7 @@ export function CustomersPage() {
         data={customers.data.items}
         getRowId={(customer) => customer.id}
         pageSize={10}
-        selectable={canVerify}
+        selectable={canVerify || canDelete || canExport}
         onSelectionChange={handleSelection}
       />
       <ConfirmDialog
@@ -362,6 +397,16 @@ export function CustomersPage() {
         destructive
         pending={remove.isPending}
         onConfirm={() => deleting && remove.mutate(deleting.id)}
+      />
+      <ConfirmDialog
+        open={bulkDelete}
+        onOpenChange={setBulkDelete}
+        title={`Remove ${selected.length} customers?`}
+        description="Customers with open orders are skipped. Other selected customers are soft-deleted."
+        confirmLabel="Remove selected"
+        destructive
+        pending={bulk.isPending}
+        onConfirm={() => bulk.mutate("delete")}
       />
     </div>
   );

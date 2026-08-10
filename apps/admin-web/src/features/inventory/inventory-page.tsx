@@ -1,28 +1,36 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Boxes,
   CalendarClock,
   CircleDollarSign,
+  Download,
   History,
   PackagePlus,
-  Search,
   SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
-import { Input } from "@/components/ui/input";
+import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
+import { DeleteRowAction, RowActions } from "@/components/ui/row-actions";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useHasPermission } from "@/features/auth/auth-store";
 import {
   getInventorySummary,
+  deleteBatch,
   listBatches,
   listInventory,
   listMovements,
@@ -31,7 +39,11 @@ import {
 import type { InventoryProduct, ProductBatch } from "@/features/catalog/types";
 import { AdjustBatchDrawer, InboundBatchDrawer } from "@/features/inventory/batch-drawers";
 import { StockBadge } from "@/features/products/product-ui";
+import { getApiErrorDetail } from "@/lib/api-errors";
+import { bulkResultMessage, downloadSection, runBulkAction } from "@/lib/data-controls";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { formatMoney } from "@/lib/utils";
+import { toast } from "sonner";
 
 const dateFormatter = new Intl.DateTimeFormat("en-TZ", { dateStyle: "medium" });
 const dateTimeFormatter = new Intl.DateTimeFormat("en-TZ", {
@@ -44,9 +56,15 @@ export function InventoryPage() {
   const [search, setSearch] = useState("");
   const [stock, setStock] = useState("");
   const [batchStatus, setBatchStatus] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
+  const [selected, setSelected] = useState<ProductBatch[]>([]);
+  const [deleting, setDeleting] = useState<ProductBatch | null>(null);
+  const [bulkDelete, setBulkDelete] = useState(false);
+  const deferredSearch = useDebouncedValue(search.trim());
   const canAdd = useHasPermission("batches.create");
   const canAdjust = useHasPermission("inventory.adjust");
+  const canEdit = useHasPermission("batches.edit");
+  const canExport = useHasPermission("catalog.export");
+  const queryClient = useQueryClient();
   const warehouses = useQuery({
     queryKey: ["warehouses", "inventory"],
     queryFn: () => listWarehouses(),
@@ -63,19 +81,58 @@ export function InventoryPage() {
         warehouse_id: warehouseId || undefined,
         stock: stock || undefined,
       }),
+    placeholderData: keepPreviousData,
   });
   const batches = useQuery({
-    queryKey: ["batches", warehouseId, batchStatus],
+    queryKey: ["batches", warehouseId, batchStatus, deferredSearch],
     queryFn: () =>
       listBatches({
         warehouse_id: warehouseId || undefined,
         batch_status: batchStatus || undefined,
+        search: deferredSearch || undefined,
       }),
+    placeholderData: keepPreviousData,
   });
   const movements = useQuery({
     queryKey: ["inventory", "movements", warehouseId],
     queryFn: () => listMovements({ warehouse_id: warehouseId || undefined }),
   });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["batches"] }),
+      queryClient.invalidateQueries({ queryKey: ["inventory"] }),
+    ]);
+  const bulk = useMutation({
+    mutationFn: (action: string) =>
+      runBulkAction("/product-batches/bulk", {
+        ids: selected.map((item) => item.id),
+        action,
+      }),
+    onSuccess: async (result) => {
+      await refresh();
+      setSelected([]);
+      setBulkDelete(false);
+      const message = bulkResultMessage(result);
+      if (result.skipped || result.failed)
+        toast.warning(message.title, { description: message.description });
+      else toast.success(message.title);
+    },
+    onError: (error) =>
+      toast.error("Bulk action failed", { description: getApiErrorDetail(error) }),
+  });
+  const remove = useMutation({
+    mutationFn: deleteBatch,
+    onSuccess: async () => {
+      await refresh();
+      setDeleting(null);
+      toast.success("Batch removed");
+    },
+    onError: (error) =>
+      toast.error("Batch could not be removed", {
+        description: getApiErrorDetail(error),
+      }),
+  });
+  const handleSelection = useCallback((rows: ProductBatch[]) => setSelected(rows), []);
   const productColumns = useMemo<ColumnDef<InventoryProduct>[]>(
     () => [
       {
@@ -223,7 +280,7 @@ export function InventoryPage() {
           />
         ),
       },
-      ...(canAdjust
+      ...(canAdjust || canEdit
         ? [
             {
               id: "actions",
@@ -231,21 +288,31 @@ export function InventoryPage() {
               enableSorting: false,
               meta: { align: "right" as const },
               cell: ({ row }: { row: { original: ProductBatch } }) => (
-                <AdjustBatchDrawer
-                  batch={row.original}
-                  trigger={
-                    <Button variant="ghost" size="sm">
-                      <SlidersHorizontal aria-hidden="true" />
-                      Adjust
-                    </Button>
-                  }
-                />
+                <RowActions>
+                  {canAdjust ? (
+                    <AdjustBatchDrawer
+                      batch={row.original}
+                      trigger={
+                        <Button variant="ghost" size="sm">
+                          <SlidersHorizontal aria-hidden="true" />
+                          Adjust
+                        </Button>
+                      }
+                    />
+                  ) : null}
+                  {canEdit ? (
+                    <DeleteRowAction
+                      label={`Delete batch ${row.original.batch_number}`}
+                      onClick={() => setDeleting(row.original)}
+                    />
+                  ) : null}
+                </RowActions>
               ),
             },
           ]
         : []),
     ],
-    [canAdjust],
+    [canAdjust, canEdit],
   );
   if (summary.isPending || inventory.isPending || batches.isPending)
     return <LoadingState label="Loading inventory…" />;
@@ -302,34 +369,54 @@ export function InventoryPage() {
         title="Inventory"
         subtitle="Monitor warehouse stock, expiry exposure, cost valuation, and every quantity movement."
         actions={
-          canAdd ? (
-            <InboundBatchDrawer
-              trigger={
-                <Button>
-                  <PackagePlus aria-hidden="true" />
-                  Add inbound batch
-                </Button>
-              }
-            />
-          ) : null
+          <>
+            {canExport ? (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  downloadSection(
+                    "/product-batches/export",
+                    {
+                      search: deferredSearch || undefined,
+                      warehouse_id: warehouseId || undefined,
+                      batch_status: batchStatus || undefined,
+                      stock: stock || undefined,
+                    },
+                    "kabisa-inventory-batches.xlsx",
+                  )
+                    .then(() => toast.success("Inventory downloaded"))
+                    .catch((error) =>
+                      toast.error("Inventory could not be downloaded", {
+                        description: getApiErrorDetail(error),
+                      }),
+                    )
+                }
+              >
+                <Download aria-hidden="true" />
+                Download
+              </Button>
+            ) : null}
+            {canAdd ? (
+              <InboundBatchDrawer
+                trigger={
+                  <Button>
+                    <PackagePlus aria-hidden="true" />
+                    Add inbound batch
+                  </Button>
+                }
+              />
+            ) : null}
+          </>
         }
       />
       <FilterBar title="Inventory filters">
         <FilterField label="Search products" htmlFor="inventory-search">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            />
-            <Input
-              id="inventory-search"
-              type="search"
-              className="pl-10"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name or SKU"
-            />
-          </div>
+          <SearchInput
+            id="inventory-search"
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Product, SKU, or batch"
+          />
         </FilterField>
         <FilterField label="Warehouse" htmlFor="inventory-warehouse">
           <select
@@ -404,6 +491,26 @@ export function InventoryPage() {
           pageSize={10}
         />
       </section>
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Remove batch?"
+        description="Only empty batches can be soft-deleted. Stock or reservations protect the record."
+        confirmLabel="Remove batch"
+        destructive
+        pending={remove.isPending}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
+      />
+      <ConfirmDialog
+        open={bulkDelete}
+        onOpenChange={setBulkDelete}
+        title={`Remove ${selected.length} batches?`}
+        description="Empty batches are removed; batches with stock or reservations are skipped."
+        confirmLabel="Remove selected"
+        destructive
+        pending={bulk.isPending}
+        onConfirm={() => bulk.mutate("delete")}
+      />
       <section>
         <div className="mb-3">
           <h2 className="font-display text-xl font-semibold">Batches</h2>
@@ -411,12 +518,48 @@ export function InventoryPage() {
             Warehouse-scoped batches listed earliest-expiry-first.
           </p>
         </div>
+        {canEdit || canExport ? (
+          <div className="mb-3">
+            <BulkActionBar
+              selectedCount={selected.length}
+              totalCount={batches.data.total}
+              noun="batches"
+              showSort={false}
+              pending={bulk.isPending || remove.isPending}
+              actions={[
+                ...(canEdit
+                  ? [
+                      { value: "quarantine", label: "Quarantine batches" },
+                      { value: "activate", label: "Activate batches" },
+                      { value: "delete", label: "Delete batches" },
+                    ]
+                  : []),
+                ...(canExport ? [{ value: "export", label: "Export selected" }] : []),
+              ]}
+              onAction={(action) => {
+                if (action === "delete") setBulkDelete(true);
+                else if (action === "export") {
+                  void downloadSection(
+                    "/product-batches/export",
+                    { ids: selected.map((item) => item.id) },
+                    "kabisa-selected-batches.xlsx",
+                  ).catch((error) =>
+                    toast.error("Batches could not be downloaded", {
+                      description: getApiErrorDetail(error),
+                    }),
+                  );
+                } else bulk.mutate(action);
+              }}
+            />
+          </div>
+        ) : null}
         <DataTable
           ariaLabel="Inventory batches"
           columns={batchColumns}
           data={batches.data.items}
           getRowId={(item) => item.id}
-          selectable={false}
+          selectable={canEdit || canExport}
+          onSelectionChange={handleSelection}
           pageSize={10}
         />
       </section>

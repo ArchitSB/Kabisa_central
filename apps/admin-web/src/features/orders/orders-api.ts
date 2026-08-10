@@ -40,6 +40,9 @@ export async function createOrder(payload: OrderPayload) {
   const response = await apiClient.post<OrderDetail>("/orders", payload);
   return response.data;
 }
+export async function deleteOrder(id: string) {
+  await apiClient.delete(`/orders/${id}`);
+}
 export async function approveOrder(id: string, note: string | null = null) {
   const response = await apiClient.post<OrderDetail>(`/orders/${id}/approve`, { note });
   return response.data;

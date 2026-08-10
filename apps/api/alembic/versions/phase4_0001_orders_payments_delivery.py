@@ -47,18 +47,22 @@ delivery_status = _enum(
 
 
 def _id() -> sa.Column:
-    return sa.Column(
-        "id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False
-    )
+    return sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False)
 
 
 def _timestamps() -> list[sa.Column]:
     return [
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.Column(
-            "updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
     ]
 
@@ -99,9 +103,7 @@ def upgrade() -> None:
         sa.Column("customer_id", sa.UUID(), nullable=False),
         sa.Column("warehouse_id", sa.UUID(), nullable=False),
         sa.Column("status", order_status, server_default="PENDING", nullable=False),
-        sa.Column(
-            "payment_status", order_payment_status, server_default="UNPAID", nullable=False
-        ),
+        sa.Column("payment_status", order_payment_status, server_default="UNPAID", nullable=False),
         sa.Column("source", order_source, server_default="ADMIN", nullable=False),
         sa.Column("price_tier_id", sa.UUID(), nullable=False),
         sa.Column("subtotal", sa.Numeric(14, 2), nullable=False),
@@ -180,17 +182,13 @@ def upgrade() -> None:
         sa.CheckConstraint("quantity > 0", name="ck_order_allocations_quantity_positive"),
         *_audit_constraints(),
         sa.ForeignKeyConstraint(["batch_id"], ["product_batches.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(
-            ["order_item_id"], ["order_items.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["order_item_id"], ["order_items.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["warehouse_id"], ["warehouses.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
     )
     _audit_indexes("order_item_allocations")
     for column in ("order_item_id", "batch_id", "warehouse_id"):
-        op.create_index(
-            f"ix_order_item_allocations_{column}", "order_item_allocations", [column]
-        )
+        op.create_index(f"ix_order_item_allocations_{column}", "order_item_allocations", [column])
 
     op.create_table(
         "order_status_history",
@@ -251,9 +249,7 @@ def upgrade() -> None:
         _id(),
         sa.Column("order_id", sa.UUID(), nullable=False),
         sa.Column("agent_id", sa.UUID()),
-        sa.Column(
-            "status", delivery_status, server_default="NOT_ASSIGNED", nullable=False
-        ),
+        sa.Column("status", delivery_status, server_default="NOT_ASSIGNED", nullable=False),
         sa.Column("assigned_at", sa.DateTime(timezone=True)),
         sa.Column("dispatched_at", sa.DateTime(timezone=True)),
         sa.Column("delivered_at", sa.DateTime(timezone=True)),

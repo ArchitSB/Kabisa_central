@@ -1,16 +1,12 @@
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
+import { useCallback, useMemo, useState } from "react";
 import {
-  Download,
-  Eye,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Search,
-  Trash2,
-  Upload,
-} from "lucide-react";
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Download, Eye, Pencil, Plus, RotateCcw, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -18,14 +14,13 @@ import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
-import { Input } from "@/components/ui/input";
+import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
+import { DeleteRowAction, RowActions } from "@/components/ui/row-actions";
 import { useHasPermission } from "@/features/auth/auth-store";
 import {
   deleteProduct,
-  exportCatalog,
   listBrands,
   listCategories,
   listProducts,
@@ -46,6 +41,8 @@ import {
   VerificationBadge,
 } from "@/features/products/product-ui";
 import { getApiErrorDetail } from "@/lib/api-errors";
+import { bulkResultMessage, downloadSection, runBulkAction } from "@/lib/data-controls";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const emptyFilters = {
   category_id: "",
@@ -86,10 +83,11 @@ export function ProductsPage() {
   const [selected, setSelected] = useState<Product[]>([]);
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);
-  const deferredSearch = useDeferredValue(search.trim());
+  const deferredSearch = useDebouncedValue(search.trim());
   const canCreate = useHasPermission("products.create");
   const canEdit = useHasPermission("products.edit");
   const canDelete = useHasPermission("products.delete");
+  const canVerify = useHasPermission("products.verify");
   const canImport = useHasPermission("catalog.import");
   const canExport = useHasPermission("catalog.export");
   const queryClient = useQueryClient();
@@ -106,6 +104,7 @@ export function ProductsPage() {
   const products = useQuery({
     queryKey: ["products", params],
     queryFn: () => listProducts(params),
+    placeholderData: keepPreviousData,
   });
   const categories = useQuery({
     queryKey: ["categories", "filters"],
@@ -146,17 +145,23 @@ export function ProductsPage() {
         description: getApiErrorDetail(error),
       }),
   });
-  const bulkUpdate = useMutation({
-    mutationFn: async ({ active }: { active: boolean }) => {
-      for (const item of selected) await saveProduct(payloadFor(item, active), item.id);
-    },
-    onSuccess: async () => {
+  const bulk = useMutation({
+    mutationFn: (action: string) =>
+      runBulkAction("/products/bulk", {
+        ids: selected.map((item) => item.id),
+        action,
+      }),
+    onSuccess: async (result) => {
       await refresh();
       setSelected([]);
-      toast.success("Selected products updated");
+      setBulkDelete(false);
+      const message = bulkResultMessage(result);
+      if (result.skipped || result.failed)
+        toast.warning(message.title, { description: message.description });
+      else toast.success(message.title);
     },
     onError: (error) =>
-      toast.error("Bulk update stopped", { description: getApiErrorDetail(error) }),
+      toast.error("Bulk action failed", { description: getApiErrorDetail(error) }),
   });
   const handleSelection = useCallback((rows: Product[]) => setSelected(rows), []);
   const columns = useMemo<ColumnDef<Product>[]>(
@@ -258,7 +263,7 @@ export function ProductsPage() {
         enableSorting: false,
         meta: { align: "right" },
         cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
+          <RowActions>
             <Button asChild variant="ghost" size="sm">
               <Link to={`/products/${row.original.id}`}>
                 <Eye aria-hidden="true" />
@@ -277,16 +282,12 @@ export function ProductsPage() {
               />
             ) : null}
             {canDelete ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                aria-label={`Delete ${row.original.name}`}
+              <DeleteRowAction
+                label={`Delete ${row.original.name}`}
                 onClick={() => setDeleting(row.original)}
-              >
-                <Trash2 aria-hidden="true" />
-              </Button>
+              />
             ) : null}
-          </div>
+          </RowActions>
         ),
       },
     ],
@@ -294,8 +295,8 @@ export function ProductsPage() {
   );
   async function doExport() {
     try {
-      await exportCatalog();
-      toast.success("Catalog CSV downloaded");
+      await downloadSection("/products/export", { ...params }, "kabisa-products.xlsx");
+      toast.success("Products downloaded");
     } catch (error) {
       toast.error("Catalog could not be exported", {
         description: getApiErrorDetail(error),
@@ -304,7 +305,17 @@ export function ProductsPage() {
   }
   function bulkAction(action: string) {
     if (action === "delete") setBulkDelete(true);
-    else bulkUpdate.mutate({ active: action === "activate" });
+    else if (action === "export") {
+      void downloadSection(
+        "/products/export",
+        { ids: selected.map((item) => item.id) },
+        "kabisa-selected-products.xlsx",
+      ).catch((error) =>
+        toast.error("Products could not be downloaded", {
+          description: getApiErrorDetail(error),
+        }),
+      );
+    } else bulk.mutate(action);
   }
   return (
     <div className="space-y-6">
@@ -327,7 +338,7 @@ export function ProductsPage() {
             {canExport ? (
               <Button variant="secondary" onClick={doExport}>
                 <Download aria-hidden="true" />
-                Export CSV
+                Download
               </Button>
             ) : null}
             {canCreate ? (
@@ -345,20 +356,12 @@ export function ProductsPage() {
       />
       <FilterBar>
         <FilterField label="Search" htmlFor="product-search">
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            />
-            <Input
-              id="product-search"
-              type="search"
-              className="pl-10"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name, SKU, generic"
-            />
-          </div>
+          <SearchInput
+            id="product-search"
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Name, SKU, generic"
+          />
         </FilterField>
         <FilterField label="Category" htmlFor="product-category-filter">
           <select
@@ -486,7 +489,7 @@ export function ProductsPage() {
           Reset
         </Button>
       </FilterBar>
-      {canEdit || canDelete ? (
+      {canEdit || canDelete || canVerify || canExport ? (
         <BulkActionBar
           selectedCount={selected.length}
           totalCount={products.data?.total ?? 0}
@@ -495,12 +498,16 @@ export function ProductsPage() {
               ? [
                   { value: "activate", label: "Activate products" },
                   { value: "deactivate", label: "Deactivate products" },
+                  { value: "feature", label: "Feature products" },
+                  { value: "unfeature", label: "Unfeature products" },
                 ]
               : []),
+            ...(canVerify ? [{ value: "verify", label: "Verify products" }] : []),
             ...(canDelete ? [{ value: "delete", label: "Delete products" }] : []),
+            ...(canExport ? [{ value: "export", label: "Export selected" }] : []),
           ]}
           onAction={bulkAction}
-          pending={bulkUpdate.isPending || remove.isPending}
+          pending={bulk.isPending || remove.isPending}
           noun="products"
         />
       ) : null}
@@ -518,7 +525,7 @@ export function ProductsPage() {
           data={products.data.items}
           getRowId={(item) => item.id}
           onSelectionChange={handleSelection}
-          selectable={canEdit || canDelete}
+          selectable={canEdit || canDelete || canVerify || canExport}
           pageSize={12}
         />
       )}
@@ -526,7 +533,7 @@ export function ProductsPage() {
         open={Boolean(deleting)}
         onOpenChange={(open) => !open && setDeleting(null)}
         title="Remove product?"
-        description={`This soft-deletes ${deleting?.name ?? "the product"}. Products with on-hand stock must be depleted first.`}
+        description={`This soft-deletes ${deleting?.name ?? "the product"}. Products with on-hand stock or open orders are protected.`}
         confirmLabel="Remove product"
         destructive
         pending={remove.isPending}
@@ -536,11 +543,11 @@ export function ProductsPage() {
         open={bulkDelete}
         onOpenChange={setBulkDelete}
         title={`Remove ${selected.length} products?`}
-        description="Each product will be soft-deleted. Any product with on-hand stock stops the operation."
+        description="Products with on-hand stock or open orders are skipped; eligible products are soft-deleted."
         confirmLabel="Remove selected"
         destructive
-        pending={remove.isPending}
-        onConfirm={() => remove.mutate(selected)}
+        pending={bulk.isPending}
+        onConfirm={() => bulk.mutate("delete")}
       />
     </div>
   );

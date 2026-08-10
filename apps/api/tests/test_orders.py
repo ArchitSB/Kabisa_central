@@ -14,6 +14,7 @@ from app.models import (
     CustomerDocumentStatus,
     CustomerStatus,
     DeliveryAgent,
+    Order,
     OrderPaymentStatus,
     OrderStatus,
     PriceTier,
@@ -139,6 +140,44 @@ async def test_verified_gate_and_server_side_price_snapshot(
                 session, _payload(customer, warehouse, product, 1), user
             )
         assert blocked.value.code == "customer_not_verified"
+
+
+async def test_order_delete_only_allows_uncommitted_records_without_payments(
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with test_session_factory() as session:
+        user, customer, _, warehouse, product, _, _ = await _records(session)
+        pending = await order_service.create_order(
+            session, _payload(customer, warehouse, product, 1), user
+        )
+        await order_service.delete_order(session, pending.id, user)
+        deleted = await session.get(Order, pending.id)
+        assert deleted is not None and deleted.deleted_at is not None
+
+        committed = await order_service.create_order(
+            session, _payload(customer, warehouse, product, 1), user
+        )
+        await allocation_service.approve_order(session, committed.id, user)
+        with pytest.raises(AppError) as protected:
+            await order_service.delete_order(session, committed.id, user)
+        assert protected.value.code == "order_not_deletable"
+
+        await payment_service.record_payment(
+            session,
+            committed.id,
+            PaymentCreate(amount=Decimal("100")),
+            user,
+        )
+        await allocation_service.terminal_transition(
+            session,
+            committed.id,
+            OrderStatus.CANCELLED,
+            user,
+            note="Cancelled after a partial payment.",
+        )
+        with pytest.raises(AppError) as paid:
+            await order_service.delete_order(session, committed.id, user)
+        assert paid.value.code == "order_has_payments"
 
 
 async def test_fefo_reservation_and_cancel_release_net_to_zero(

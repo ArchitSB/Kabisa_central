@@ -1,7 +1,7 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, FileClock, RotateCcw, Search } from "lucide-react";
+import { Eye, FileClock, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -15,7 +15,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
@@ -23,6 +23,7 @@ import { ErrorState, LoadingState } from "@/components/ui/resource-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getAuditOptions, listAuditLogs } from "@/features/audit/audit-api";
 import type { AuditLog } from "@/features/audit/types";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 const PAGE_SIZE = 20;
 
@@ -49,7 +50,7 @@ export function AuditPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selected, setSelected] = useState<AuditLog | null>(null);
-  const deferredSearch = useDeferredValue(search.trim());
+  const deferredSearch = useDebouncedValue(search.trim());
   const options = useQuery({
     queryKey: ["audit-options"],
     queryFn: getAuditOptions,
@@ -77,6 +78,7 @@ export function AuditPage() {
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
       }),
+    placeholderData: keepPreviousData,
   });
 
   useEffect(
@@ -178,20 +180,12 @@ export function AuditPage() {
           htmlFor="audit-search"
           className="md:col-span-2 xl:col-span-1"
         >
-          <div className="relative">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            />
-            <Input
-              id="audit-search"
-              type="search"
-              className="pl-10"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Action, actor, entity, or ID"
-            />
-          </div>
+          <SearchInput
+            id="audit-search"
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Action, actor, entity, or ID"
+          />
         </FilterField>
         <FilterField label="Actor" htmlFor="audit-actor">
           <select

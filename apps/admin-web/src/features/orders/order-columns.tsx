@@ -4,6 +4,7 @@ import { Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { DeleteRowAction, RowActions } from "@/components/ui/row-actions";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type {
   OrderStatus,
@@ -31,7 +32,10 @@ export const paymentTone: Record<PaymentStatus, "success" | "warning" | "danger"
   PAID: "success",
 };
 
-export function getOrderColumns(currency: string): ColumnDef<OrderSummary>[] {
+export function getOrderColumns(
+  currency: string,
+  options?: { canDelete?: boolean; onDelete?: (order: OrderSummary) => void },
+): ColumnDef<OrderSummary>[] {
   return [
     {
       accessorKey: "order_number",
@@ -114,12 +118,20 @@ export function getOrderColumns(currency: string): ColumnDef<OrderSummary>[] {
       enableSorting: false,
       meta: { align: "right" },
       cell: ({ row }) => (
-        <Button asChild variant="outline" size="sm">
-          <Link to={`/orders/${row.original.id}`}>
-            <Eye aria-hidden="true" />
-            View
-          </Link>
-        </Button>
+        <RowActions>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/orders/${row.original.id}`}>
+              <Eye aria-hidden="true" />
+              View
+            </Link>
+          </Button>
+          {options?.canDelete ? (
+            <DeleteRowAction
+              label={`Delete ${row.original.order_number}`}
+              onClick={() => options.onDelete?.(row.original)}
+            />
+          ) : null}
+        </RowActions>
       ),
     },
   ];

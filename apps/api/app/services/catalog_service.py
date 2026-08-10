@@ -13,8 +13,12 @@ from app.core.errors import AppError
 from app.core.uploads import JPEG, PNG, WEBP, store_upload, upload_path
 from app.models import (
     AdminUser,
+    BatchStatus,
     Brand,
     Category,
+    Order,
+    OrderItem,
+    OrderStatus,
     Product,
     ProductBatch,
     ProductImage,
@@ -130,7 +134,7 @@ async def list_warehouses(
     session: AsyncSession,
     *,
     page: int,
-    page_size: int,
+    page_size: int | None,
     sort: str,
     search: str | None,
     is_active: bool | None,
@@ -158,20 +162,19 @@ async def list_warehouses(
         default_field="name",
     )
     total = await session.scalar(select(func.count()).select_from(Warehouse).where(*filters))
-    items = (
-        await session.scalars(
-            select(Warehouse)
-            .where(*filters)
-            .order_by(Warehouse.is_primary.desc(), order_by, Warehouse.id.asc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
-    ).all()
+    statement = (
+        select(Warehouse)
+        .where(*filters)
+        .order_by(Warehouse.is_primary.desc(), order_by, Warehouse.id.asc())
+    )
+    if page_size is not None:
+        statement = statement.offset((page - 1) * page_size).limit(page_size)
+    items = (await session.scalars(statement)).all()
     return WarehouseListResponse(
         items=[WarehouseRead.model_validate(item) for item in items],
         total=total or 0,
         page=page,
-        page_size=page_size,
+        page_size=page_size if page_size is not None else total or 0,
     )
 
 
@@ -180,10 +183,18 @@ async def create_warehouse(
     payload: WarehouseCreate,
     current_user: AdminUser,
 ) -> WarehouseRead:
-    if payload.is_primary:
-        await session.execute(update(Warehouse).values(is_primary=False))
+    warehouse_count = await session.scalar(
+        select(func.count()).select_from(Warehouse).where(Warehouse.deleted_at.is_(None))
+    )
+    is_primary = payload.is_primary or not warehouse_count
+    if is_primary:
+        await session.execute(
+            update(Warehouse).where(Warehouse.deleted_at.is_(None)).values(is_primary=False)
+        )
     warehouse = Warehouse(
-        **payload.model_dump(),
+        **payload.model_dump(exclude={"is_primary", "is_active"}),
+        is_primary=is_primary,
+        is_active=True if is_primary else payload.is_active,
         created_by=current_user.id,
         updated_by=current_user.id,
     )
@@ -203,14 +214,31 @@ async def update_warehouse(
     current_user: AdminUser,
 ) -> WarehouseRead:
     warehouse = await get_warehouse(session, warehouse_id)
+    if warehouse.is_primary and payload.is_primary is False:
+        raise AppError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Set another warehouse as primary before removing this designation.",
+            code="primary_warehouse_required",
+        )
+    if warehouse.is_primary and payload.is_active is False:
+        raise AppError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Set another primary warehouse before deactivating this location.",
+            code="primary_warehouse_required",
+        )
     if payload.is_primary is True:
         await session.execute(
-            update(Warehouse).where(Warehouse.id != warehouse.id).values(is_primary=False)
+            update(Warehouse)
+            .where(Warehouse.id != warehouse.id, Warehouse.deleted_at.is_(None))
+            .values(is_primary=False)
         )
+        warehouse.is_active = True
     for field in payload.model_fields_set:
         value = getattr(payload, field)
         if value is not None:
             setattr(warehouse, field, value)
+    if warehouse.is_primary:
+        warehouse.is_active = True
     warehouse.updated_by = current_user.id
     await _commit_conflict(
         session,
@@ -224,26 +252,78 @@ async def delete_warehouse(
     session: AsyncSession,
     warehouse_id: UUID,
     current_user: AdminUser,
+    *,
+    commit: bool = True,
 ) -> None:
     warehouse = await get_warehouse(session, warehouse_id)
+    if warehouse.is_primary:
+        raise AppError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Set another warehouse as primary before deleting this location.",
+            code="primary_warehouse_required",
+        )
     batch_count = await session.scalar(
         select(func.count())
         .select_from(ProductBatch)
         .where(
             ProductBatch.warehouse_id == warehouse.id,
             ProductBatch.deleted_at.is_(None),
+            or_(
+                ProductBatch.status == BatchStatus.ACTIVE,
+                ProductBatch.quantity_available > 0,
+                ProductBatch.quantity_reserved > 0,
+            ),
         )
     )
-    if batch_count:
+    open_order_count = await session.scalar(
+        select(func.count())
+        .select_from(Order)
+        .where(
+            Order.warehouse_id == warehouse.id,
+            Order.deleted_at.is_(None),
+            Order.status.in_(
+                [OrderStatus.PENDING, OrderStatus.APPROVED, OrderStatus.PENDING_DELIVERY]
+            ),
+        )
+    )
+    if batch_count or open_order_count:
         raise AppError(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A warehouse with inventory batches cannot be deleted; deactivate it instead.",
+            detail=(
+                "A warehouse with live inventory or open orders cannot be deleted; "
+                "move or close those records first."
+            ),
             code="warehouse_in_use",
         )
     warehouse.is_active = False
     warehouse.deleted_at = datetime.now(UTC)
     warehouse.updated_by = current_user.id
-    await session.commit()
+    if commit:
+        await session.commit()
+
+
+async def set_primary_warehouse(
+    session: AsyncSession,
+    warehouse_id: UUID,
+    current_user: AdminUser,
+    *,
+    commit: bool = True,
+) -> WarehouseRead:
+    warehouse = await get_warehouse(session, warehouse_id)
+    await session.execute(
+        update(Warehouse)
+        .where(Warehouse.id != warehouse.id, Warehouse.deleted_at.is_(None))
+        .values(is_primary=False)
+    )
+    warehouse.is_primary = True
+    warehouse.is_active = True
+    warehouse.updated_by = current_user.id
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
+    await session.refresh(warehouse)
+    return WarehouseRead.model_validate(warehouse)
 
 
 async def get_category(session: AsyncSession, category_id: UUID) -> Category:
@@ -624,8 +704,9 @@ async def _serialize_product(
     product: Product,
     *,
     detail: bool,
+    settings_values: dict[str, str] | None = None,
 ) -> ProductRead | ProductDetailRead:
-    values = await runtime_settings(session)
+    values = settings_values or await runtime_settings(session)
     today = date.today()
     expiring_days = int(values["expiring_soon_days"])
     threshold = (
@@ -735,7 +816,7 @@ async def list_products(
     session: AsyncSession,
     *,
     page: int,
-    page_size: int,
+    page_size: int | None,
     sort: str,
     search: str | None,
     category_id: UUID | None,
@@ -789,24 +870,30 @@ async def list_products(
         .all()
     )
     serialized: list[ProductRead] = []
+    settings_values = await runtime_settings(session)
     for product in products:
         if warehouse_id is not None and not any(
             batch.warehouse_id == warehouse_id and batch.deleted_at is None
             for batch in product.batches
         ):
             continue
-        item = await _serialize_product(session, product, detail=False)
+        item = await _serialize_product(
+            session,
+            product,
+            detail=False,
+            settings_values=settings_values,
+        )
         assert isinstance(item, ProductRead)
         if stock and item.stock_status != stock:
             continue
         serialized.append(item)
     total = len(serialized)
-    start = (page - 1) * page_size
+    start = (page - 1) * page_size if page_size is not None else 0
     return ProductListResponse(
-        items=serialized[start : start + page_size],
+        items=(serialized[start : start + page_size] if page_size is not None else serialized),
         total=total,
         page=page,
-        page_size=page_size,
+        page_size=page_size if page_size is not None else total,
     )
 
 
@@ -885,6 +972,8 @@ async def delete_product(
     session: AsyncSession,
     product_id: UUID,
     current_user: AdminUser,
+    *,
+    commit: bool = True,
 ) -> None:
     product = await get_product_record(session, product_id)
     on_hand, _ = calculate_product_stock(
@@ -897,23 +986,47 @@ async def delete_product(
             detail="A product with on-hand stock cannot be deleted; deactivate it instead.",
             code="product_has_stock",
         )
+    open_order_count = await session.scalar(
+        select(func.count())
+        .select_from(OrderItem)
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            OrderItem.product_id == product.id,
+            Order.deleted_at.is_(None),
+            Order.status.in_(
+                [OrderStatus.PENDING, OrderStatus.APPROVED, OrderStatus.PENDING_DELIVERY]
+            ),
+        )
+    )
+    if open_order_count:
+        raise AppError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A product referenced by open orders cannot be deleted.",
+            code="product_has_open_orders",
+        )
     product.is_active = False
     product.deleted_at = datetime.now(UTC)
     product.updated_by = current_user.id
-    await session.commit()
+    if commit:
+        await session.commit()
 
 
 async def verify_product(
     session: AsyncSession,
     product_id: UUID,
     current_user: AdminUser,
+    *,
+    commit: bool = True,
 ) -> VerificationRead:
     product = await get_product_record(session, product_id)
     product.verification_status = VerificationStatus.VERIFIED
     product.verified_by = current_user.id
     product.verified_at = datetime.now(UTC)
     product.updated_by = current_user.id
-    await session.commit()
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
     return VerificationRead(
         id=product.id,
         verification_status=product.verification_status,

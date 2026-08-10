@@ -1,23 +1,32 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus, Search, TicketPercent, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { DeleteRowAction, RowActions } from "@/components/ui/row-actions";
 import { useHasPermission } from "@/features/auth/auth-store";
 import { getCatalogSettings } from "@/features/catalog/catalog-api";
 import { CouponDrawer } from "@/features/coupons/coupon-drawer";
 import { deleteCoupon, listCoupons, saveCoupon } from "@/features/coupons/coupons-api";
 import type { Coupon } from "@/features/coupons/types";
 import { getApiErrorDetail } from "@/lib/api-errors";
+import { bulkResultMessage, downloadSection, runBulkAction } from "@/lib/data-controls";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { formatMoney } from "@/lib/utils";
 
 const validityLabels = {
@@ -32,10 +41,13 @@ export function CouponsPage() {
   const [search, setSearch] = useState("");
   const [active, setActive] = useState("");
   const [deleting, setDeleting] = useState<Coupon | null>(null);
-  const deferredSearch = useDeferredValue(search.trim());
+  const [selected, setSelected] = useState<Coupon[]>([]);
+  const [bulkDelete, setBulkDelete] = useState(false);
+  const deferredSearch = useDebouncedValue(search.trim());
   const canCreate = useHasPermission("coupons.create");
   const canEdit = useHasPermission("coupons.edit");
   const canDelete = useHasPermission("coupons.delete");
+  const canExport = useHasPermission("reports.export");
   const queryClient = useQueryClient();
   const settings = useQuery({
     queryKey: ["catalog-settings"],
@@ -49,6 +61,7 @@ export function CouponsPage() {
         search: deferredSearch || undefined,
         is_active: active ? active === "active" : undefined,
       }),
+    placeholderData: keepPreviousData,
   });
   const toggle = useMutation({
     mutationFn: (coupon: Coupon) =>
@@ -67,6 +80,25 @@ export function CouponsPage() {
     onError: (error) =>
       toast.error("Coupon could not be removed", { description: getApiErrorDetail(error) }),
   });
+  const bulk = useMutation({
+    mutationFn: (action: string) =>
+      runBulkAction("/coupons/bulk", {
+        ids: selected.map((item) => item.id),
+        action,
+      }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["coupons"] });
+      setSelected([]);
+      setBulkDelete(false);
+      const message = bulkResultMessage(result);
+      if (result.skipped || result.failed)
+        toast.warning(message.title, { description: message.description });
+      else toast.success(message.title);
+    },
+    onError: (error) =>
+      toast.error("Bulk action failed", { description: getApiErrorDetail(error) }),
+  });
+  const handleSelection = useCallback((rows: Coupon[]) => setSelected(rows), []);
   const columns = useMemo<ColumnDef<Coupon>[]>(
     () => [
       {
@@ -152,7 +184,7 @@ export function CouponsPage() {
               enableSorting: false,
               meta: { align: "right" as const },
               cell: ({ row }: { row: { original: Coupon } }) => (
-                <div className="flex justify-end gap-1">
+                <RowActions>
                   {canEdit ? (
                     <CouponDrawer
                       coupon={row.original}
@@ -165,16 +197,12 @@ export function CouponsPage() {
                     />
                   ) : null}
                   {canDelete ? (
-                    <Button
-                      variant="destructive"
-                      size="sm"
+                    <DeleteRowAction
+                      label={`Delete ${row.original.code}`}
                       onClick={() => setDeleting(row.original)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      Delete
-                    </Button>
+                    />
                   ) : null}
-                </div>
+                </RowActions>
               ),
             },
           ]
@@ -189,31 +217,49 @@ export function CouponsPage() {
         title="Coupons"
         subtitle="Manage bounded promotional discounts while tier pricing remains the primary B2B pricing mechanism."
         actions={
-          canCreate ? (
-            <CouponDrawer
-              trigger={
-                <Button>
-                  <Plus aria-hidden="true" />
-                  Create coupon
-                </Button>
-              }
-            />
-          ) : null
+          <>
+            {canExport ? (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  downloadSection(
+                    "/coupons/export",
+                    {
+                      search: deferredSearch || undefined,
+                      is_active: active ? active === "active" : undefined,
+                    },
+                    "kabisa-coupons.xlsx",
+                  ).catch((error) =>
+                    toast.error("Coupons could not be downloaded", {
+                      description: getApiErrorDetail(error),
+                    }),
+                  )
+                }
+              >
+                <Download aria-hidden="true" />
+                Download
+              </Button>
+            ) : null}
+            {canCreate ? (
+              <CouponDrawer
+                trigger={
+                  <Button>
+                    <Plus aria-hidden="true" />
+                    Create coupon
+                  </Button>
+                }
+              />
+            ) : null}
+          </>
         }
       />
       <section className="surface-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-md">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-          />
-          <Input
-            type="search"
-            className="pl-10"
+        <div className="w-full sm:max-w-md">
+          <SearchInput
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onValueChange={setSearch}
             placeholder="Search code or name"
-            aria-label="Search coupons"
+            ariaLabel="Search coupons"
           />
         </div>
         <select
@@ -231,6 +277,39 @@ export function CouponsPage() {
           coupons
         </span>
       </section>
+      {canEdit || canDelete || canExport ? (
+        <BulkActionBar
+          selectedCount={selected.length}
+          totalCount={query.data?.total ?? 0}
+          noun="coupons"
+          showSort={false}
+          pending={bulk.isPending || remove.isPending}
+          actions={[
+            ...(canEdit
+              ? [
+                  { value: "activate", label: "Activate coupons" },
+                  { value: "deactivate", label: "Deactivate coupons" },
+                ]
+              : []),
+            ...(canDelete ? [{ value: "delete", label: "Delete coupons" }] : []),
+            ...(canExport ? [{ value: "export", label: "Export selected" }] : []),
+          ]}
+          onAction={(action) => {
+            if (action === "delete") setBulkDelete(true);
+            else if (action === "export") {
+              void downloadSection(
+                "/coupons/export",
+                { ids: selected.map((item) => item.id) },
+                "kabisa-selected-coupons.xlsx",
+              ).catch((error) =>
+                toast.error("Coupons could not be downloaded", {
+                  description: getApiErrorDetail(error),
+                }),
+              );
+            } else bulk.mutate(action);
+          }}
+        />
+      ) : null}
       {query.isPending ? (
         <LoadingState label="Loading coupons…" />
       ) : query.isError ? (
@@ -252,7 +331,8 @@ export function CouponsPage() {
           columns={columns}
           data={query.data.items}
           getRowId={(item) => item.id}
-          selectable={false}
+          selectable={canEdit || canDelete || canExport}
+          onSelectionChange={handleSelection}
           pageSize={12}
         />
       )}
@@ -265,6 +345,16 @@ export function CouponsPage() {
         destructive
         pending={remove.isPending}
         onConfirm={() => deleting && remove.mutate(deleting.id)}
+      />
+      <ConfirmDialog
+        open={bulkDelete}
+        onOpenChange={setBulkDelete}
+        title={`Remove ${selected.length} coupons?`}
+        description="Selected coupons are soft-deleted; existing orders retain their snapshots."
+        confirmLabel="Remove selected"
+        destructive
+        pending={bulk.isPending}
+        onConfirm={() => bulk.mutate("delete")}
       />
     </div>
   );
