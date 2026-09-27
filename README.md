@@ -1,89 +1,73 @@
-# Kabisa Admin Panel
+# Kabisa — Admin, Storefront and Mobile
 
-Tier 1 of Kabisa Pharmacy's digital platform: a FastAPI and React operations
-workspace for catalog, inventory, customers, orders, delivery, payments,
-coupons, dashboards, and reporting.
+Kabisa's healthcare procurement platform: a FastAPI/PostgreSQL operations backend, a React admin workspace, a responsive customer storefront/PWA, and an Expo native mobile app. Customer orders use the existing verification, tier pricing, FEFO inventory, delivery and payment workflows.
 
-This repository contains the complete Phase 0–5 operational workspace and the
-Phase 6 production-hardening layer: immutable audit trails, security controls,
-integrity checks, structured observability, optimized query indexes, production
-containers, backups, and handoff documentation. All operational workflows and
-aggregates use PostgreSQL.
+The storefront includes a designed editorial homepage, live catalog/search, Quick Order, guest basket merge, verified checkout, private document uploads, order tracking, invoices, recurring baskets and account management. Admin's new **Storefront** section manages merchandising, policies, navigation and runtime settings.
+
+Start with the [build report](docs/STOREFRONT_BUILD_REPORT.md), [storefront guide](docs/STOREFRONT.md), [complete API/table/settings reference](docs/STOREFRONT_REFERENCE.md), and [native app instructions](docs/MOBILE_READINESS.md).
 
 ## Requirements
 
-- Python 3.12–3.14
-- Node.js 20+ and pnpm 10
-- Docker with Compose v2
-- PostgreSQL 18
-
-If pnpm is not installed, enable it through Corepack:
+- Python 3.12 (verified locally), PostgreSQL 18
+- Node.js 22 and pnpm 10.14
+- Docker with Compose v2 for container builds/deployment
+- Expo Go or an Android emulator for native development; EAS credentials for signed distribution
 
 ```bash
 corepack enable
 corepack prepare pnpm@10.14.0 --activate
 ```
 
-## Start locally
+## Continue on this device
 
-1. Create local configuration.
+The existing `.env`, Python environment and mock database are configured. Keep the running host PostgreSQL service; a second Docker PostgreSQL cannot bind its occupied port 5432.
 
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+source .venv/bin/activate
+pnpm install --frozen-lockfile
+alembic -c apps/api/alembic.ini upgrade head
+python -m app.seed.storefront
+```
 
-2. Start PostgreSQL 18.
+The storefront seed is additive: it does not reset your original catalog or operational orders. Start these in separate terminals:
 
-   ```bash
-   docker compose up -d postgres
-   ```
+```bash
+uvicorn app.main:app --app-dir apps/api --reload
+pnpm dev:web
+pnpm dev:store
+pnpm dev:mobile
+# Optional asynchronous notifications:
+python -m app.notify --loop
+```
 
-   Add `--profile tools pgadmin` to include pgAdmin at
-   `http://localhost:5050`.
+| App | Local address / command |
+| --- | --- |
+| Admin | http://localhost:5173 |
+| Storefront | http://localhost:5174 |
+| API / OpenAPI | http://localhost:8000/docs |
+| Database readiness | http://localhost:8000/api/v1/health/ready |
+| Native app | `pnpm dev:mobile`, then open with Expo |
+| Native browser preview | `pnpm --filter @kabisa/mobile web` |
 
-3. Create the API environment and install the backend.
+Admin uses `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from your `.env`. The verified customer demo is `+255700900001`; the pending demo is `+255700900002`. Their local password is in the ignored `.env.store-demo` file. Optional demo creation requires `STORE_DEMO_PASSWORD` in development; seed reruns do not overwrite existing customer passwords. Do not use demo accounts in production.
 
-   ```bash
-   python3.12 -m venv .venv
-   source .venv/bin/activate
-   pip install -e "apps/api[dev]"
-   alembic -c apps/api/alembic.ini upgrade head
-   uvicorn app.main:app --app-dir apps/api --reload
-   ```
+For a phone, configure a reachable `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_STORE_URL`; see [Mobile readiness](docs/MOBILE_READINESS.md). Android bundle export is implemented; signed APK/AAB distribution requires your Expo/Play accounts and device testing.
 
-   - API docs: `http://localhost:8000/docs`
-   - Liveness: `http://localhost:8000/health`
-   - PostgreSQL readiness: `http://localhost:8000/api/v1/health/ready`
-   - Audit/integrity workspace: `http://localhost:5173/audit`
+## Fresh installation elsewhere
 
-4. Configure and seed authentication, catalog/inventory, customers, orders, and coupons.
+Create `.env` from `.env.example` only when it does not already exist. Configure database URLs and a strong JWT secret/admin password. Start PostgreSQL with `docker compose up -d postgres` if you do not already have a database server, then:
 
-   Set `JWT_SECRET_KEY` and replace the placeholder
-   `SUPER_ADMIN_PASSWORD` in `.env`. The configured
-   `SUPER_ADMIN_EMAIL` is the sole developer super-admin identity. Then run:
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e "apps/api[dev]"
+alembic -c apps/api/alembic.ini upgrade head
+python -m app.seed
+python -m app.seed.storefront
+pnpm install --frozen-lockfile
+```
 
-   ```bash
-   python -m app.seed
-   ```
-
-   The seed refuses the documented placeholder or passwords shorter than 8
-   characters. It is safe to re-run: the five system roles, permission
-   catalogue, mappings, configured super-admin, three price tiers, two
-   warehouses, company settings, realistic 46-product catalog, a varied
-   13-customer verification dataset, delivery agents, and ten operational
-   orders spanning every lifecycle status, report-friendly transaction dates,
-   and three coupons in valid/expired/inactive states are reconciled without duplicates.
-   Re-running with a changed
-   `SUPER_ADMIN_PASSWORD` updates the seeded administrator password.
-
-5. Install and start the admin web.
-
-   ```bash
-   pnpm install
-   pnpm dev:web
-   ```
-
-   Admin login: `http://localhost:5173/login`
+The original `app.seed` reconciles the operational mock dataset and configured super-admin; use the narrower `app.seed.storefront` for storefront-only updates. Existing operational behavior is documented below.
 
 ## Authentication and first login
 
@@ -91,7 +75,7 @@ corepack prepare pnpm@10.14.0 --activate
   the local `.env`. Passwords are never committed, logged, or returned.
 - The developer super-admin can create operational administrators under
   **Management → Admin users**, set an initial password, and assign a role.
-- Every account that can sign in is an `admin_users` record. Customer
+- Every account that can sign into admin is an `admin_users` record. Customer
   authentication is separate and is not accepted by these endpoints.
 - Inactive or soft-deleted administrators cannot sign in, and an existing
   access token is rejected after deactivation.
@@ -293,6 +277,7 @@ Key Phase 5 API groups are:
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm build
 ruff check apps/api
 black --check apps/api
@@ -308,7 +293,13 @@ never drop application tables from `DATABASE_URL`.
 ```text
 apps/api/          FastAPI, async SQLAlchemy, and Alembic
 apps/admin-web/    React 18, Vite, Tailwind, and shadcn-style primitives
-packages/shared/   generated OpenAPI types destination
+apps/store-web/    Responsive React storefront and public PWA shell
+apps/mobile/       Expo Router native customer app
+packages/core/     Pure commerce helpers and language data
+packages/api-client/  Injected transport and rotating session handling
+packages/design-tokens/  Shared JSON tokens and Tailwind preset
+packages/ui-web/   Existing admin Button, shared with web
+packages/shared/   Generated OpenAPI contracts
 design-system/     quantified Kabisa design DNA and global design rules
 docs/              security, performance, deploy, operations, onboarding
 ```
@@ -317,3 +308,5 @@ The design source of truth is
 [`design-system/MASTER.md`](design-system/MASTER.md). The machine-readable
 profile is
 [`design-system/kabisa-admin.dna.json`](design-system/kabisa-admin.dna.json).
+
+Storefront design profile: [`design-system/kabisa-store.dna.json`](design-system/kabisa-store.dna.json). Screenshots: [desktop](docs/screenshots/store-desktop.png), [mobile web](docs/screenshots/store-mobile.png), [native](docs/screenshots/native-home.png), [admin](docs/screenshots/admin-storefront.png).

@@ -77,3 +77,11 @@ api_router.include_router(deliveries_router, prefix="/deliveries", tags=["delive
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
 api_router.include_router(catalog_transfer_router, prefix="/catalog", tags=["catalog transfer"])
 api_router.include_router(catalog_settings_router, tags=["catalog settings"])
+
+from app.api.v1.routes.storefront import router as storefront_router  # noqa: E402
+from app.api.v1.store import router as store_router  # noqa: E402
+
+api_router.include_router(store_router, prefix="/store", tags=["store"])
+api_router.include_router(
+    storefront_router, prefix="/storefront", tags=["storefront administration"]
+)

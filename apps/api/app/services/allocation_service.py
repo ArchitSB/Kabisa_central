@@ -28,7 +28,7 @@ def _history(
     session: AsyncSession,
     order: Order,
     to_status: OrderStatus,
-    current_user: AdminUser,
+    current_user: AdminUser | None,
     note: str | None,
 ) -> None:
     session.add(
@@ -37,11 +37,11 @@ def _history(
             from_status=order.status,
             to_status=to_status,
             note=(note or "").strip() or None,
-            changed_by=current_user.id,
+            changed_by=current_user.id if current_user else None,
         )
     )
     order.status = to_status
-    order.updated_by = current_user.id
+    order.updated_by = current_user.id if current_user else None
 
 
 async def approve_order(
@@ -257,7 +257,7 @@ async def terminal_transition(
     session: AsyncSession,
     order_id: UUID,
     to_status: OrderStatus,
-    current_user: AdminUser,
+    current_user: AdminUser | None,
     *,
     note: str | None,
     commit: bool = True,

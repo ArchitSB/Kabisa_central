@@ -6,6 +6,8 @@ from app.core.config import settings
 from app.core.database import Base, get_db_session
 from app.main import app
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -15,8 +17,13 @@ from sqlalchemy.ext.asyncio import (
 
 @pytest_asyncio.fixture
 async def test_session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    test_url = make_url(settings.test_database_url)
+    main_url = make_url(settings.database_url)
+    if test_url == main_url or not (test_url.database or "").endswith("_test"):
+        raise RuntimeError("Tests require a separate database whose name ends in _test.")
     test_engine = create_async_engine(settings.test_database_url, pool_pre_ping=True)
     async with test_engine.begin() as connection:
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)
 

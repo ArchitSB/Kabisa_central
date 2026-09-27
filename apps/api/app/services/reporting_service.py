@@ -186,6 +186,26 @@ def _payment_totals():
     )
 
 
+async def customer_outstanding_balance(session: AsyncSession, customer_id: UUID) -> Decimal:
+    """Read-only customer balance using the same recognition rules as receivables."""
+    payments = _payment_totals()
+    balance = func.greatest(
+        Order.total_amount - func.coalesce(payments.c.collected_amount, Decimal("0")),
+        Decimal("0"),
+    )
+    result = await session.scalar(
+        select(func.coalesce(func.sum(balance), Decimal("0")))
+        .select_from(Order)
+        .outerjoin(payments, payments.c.order_id == Order.id)
+        .where(
+            Order.customer_id == customer_id,
+            Order.deleted_at.is_(None),
+            Order.status.in_(COMMITTED_SALES_STATUSES),
+        )
+    )
+    return money(result)
+
+
 async def sales_report(
     session: AsyncSession,
     *,

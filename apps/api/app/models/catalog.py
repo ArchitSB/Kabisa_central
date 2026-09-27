@@ -221,6 +221,18 @@ class Product(
     __tablename__ = "products"
     __table_args__ = (
         Index("ix_products_slug", "slug", unique=True),
+        Index(
+            "ix_products_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_products_generic_trgm",
+            "generic_name",
+            postgresql_using="gin",
+            postgresql_ops={"generic_name": "gin_trgm_ops"},
+        ),
         Index("ix_products_sku", "sku", unique=True),
     )
 

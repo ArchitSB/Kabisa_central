@@ -9,6 +9,10 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "dev:store": "pnpm --filter @kabisa/store-web dev",
+    "dev:mobile": "pnpm --filter @kabisa/mobile dev",
+    "test": "pnpm -r --if-present test",
+    "generate:api": "python3 scripts/export_openapi.py && pnpm --filter @kabisa/shared generate"
   }
 }

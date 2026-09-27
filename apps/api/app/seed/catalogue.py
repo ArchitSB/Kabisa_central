@@ -23,6 +23,12 @@ ROLE_SEEDS = (
 )
 
 PERMISSION_CODES_BY_GROUP: dict[str, tuple[str, ...]] = {
+    "storefront": (
+        "storefront.view",
+        "storefront.manage",
+        "storefront.delete",
+        "storefront.export",
+    ),
     "admin": (
         "admin_users.view",
         "admin_users.create",
@@ -169,10 +175,10 @@ ROLE_PERMISSION_CODES: dict[str, frozenset[str]] = {
     ),
 }
 
-EXPECTED_PERMISSION_COUNT = 56
+EXPECTED_PERMISSION_COUNT = 60
 EXPECTED_MAPPING_COUNTS = {
-    "super_admin": 56,
-    "manager": 50,
+    "super_admin": 60,
+    "manager": 54,
     "sales": 11,
     "inventory": 12,
     "accounts": 7,

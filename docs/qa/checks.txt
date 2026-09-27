@@ -1,0 +1,14 @@
+Kabisa implementation verification — September 2026
+Backend: 68 passed; 3 dependency deprecation warnings.
+Shared TypeScript logic/transport: 8 passed.
+Workspace lint: passed.
+Workspace typecheck: passed.
+Workspace build: passed; final store-only rebuild also passed after font/cache updates.
+Android Hermes export: passed (about 3.1 MB bundle, not a signed package).
+Ruff: passed for API and new helper scripts.
+Black: API passed with apps/api/pyproject.toml; helper scripts passed separately.
+Alembic check: no new upgrade operations detected.
+Docker: API, admin frontend, storefront, notifications images built.
+Browser: responsive public/authenticated journeys; normal customer/admin sign-in; draft FAQ CRUD; real customer order; native preview routes; offline catalog and cache privacy.
+Performance: see the three retained final-build Lighthouse reports. LCP remains slightly above target.
+No Git actions or public deployment performed.

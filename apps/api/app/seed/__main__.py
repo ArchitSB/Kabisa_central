@@ -9,6 +9,7 @@ from app.seed import (
     seed_customers,
     seed_orders,
 )
+from app.seed.storefront import seed_storefront
 
 
 async def main() -> None:
@@ -18,6 +19,7 @@ async def main() -> None:
         customer_result = await seed_customers()
         order_result = await seed_orders()
         coupon_result = await seed_coupons()
+        await seed_storefront()
     finally:
         await engine.dispose()
 

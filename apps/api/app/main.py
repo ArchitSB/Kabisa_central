@@ -54,10 +54,10 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.api_cors_origins,
+    allow_origins=list(dict.fromkeys([*settings.api_cors_origins, settings.store_origin])),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
     expose_headers=["Content-Disposition", "X-Request-ID"],
 )
 app.add_exception_handler(AppError, app_error_handler)
@@ -92,7 +92,11 @@ async def request_context(request: Request, call_next):
             "path": request.url.path,
             "status_code": response.status_code,
             "latency_ms": latency_ms,
-            "client_ip": request.client.host if request.client else None,
+            "client_ip": (
+                request.client.host
+                if request.client and not request.url.path.startswith("/api/v1/store")
+                else None
+            ),
         },
     )
     return response
@@ -119,3 +123,6 @@ async def liveness() -> LivenessResponse:
         service="kabisa-api",
         environment=settings.api_env,
     )
+
+
+from app.services import store_notifications as store_notifications  # noqa: E402

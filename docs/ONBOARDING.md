@@ -57,3 +57,12 @@ Do not invent page-specific colors, motion, or shell variants.
 Start locally and run quality commands from the root README. API OpenAPI docs
 are available at `/docs`; keep endpoint descriptions and response models
 accurate whenever a route changes.
+
+
+## Storefront staff handoff
+
+Use the existing admin credentials. Super-admin and manager now see **Storefront**. Configure company office contacts, delivery fees/zones/ETAs, minimum order, tax and verification messaging before inviting buyers. Publish reviewed policy pages and genuine testimonials if available. Upload authentic product images in Catalog; use Banners for decorative marketing imagery. Preview drafts by activating only when ready; schedules are saved as timestamps.
+
+Customer store: localhost:5174. Development demo phones: +255700900001 (verified) and +255700900002 (pending); the current local password is in ignored `.env.store-demo`. These customers are separate from the administrator. For a new signup, console OTP appears in the API log in development. Upload all four certificates and submit for review; approve through the existing customer verification workspace. Place a small order, then approve/allocate/dispatch/deliver and record payment in the existing admin workflow. The buyer sees only safe order history, balance, delivery state and invoice.
+
+After a restart, keep the original PostgreSQL service/data directory. Verify `select count(*) from products` and migration head before reseeding. Start the API, admin and store again using README commands. Avoid starting a new Docker database on port 5432 if the host PostgreSQL service already owns that port.

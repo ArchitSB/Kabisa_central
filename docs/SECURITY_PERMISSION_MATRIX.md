@@ -104,3 +104,23 @@ fails if a new route lacks authentication or a permission dependency.
 Customer documents, delivery proofs, and agent ID proofs are never mounted as
 static files. Product images are the only intentionally public upload class.
 All mutations also pass through the sensitive-operation limiter and audit hook.
+
+
+## Storefront identity and permissions
+
+| Surface | Authorization |
+| --- | --- |
+| Store config/home/catalog/pages/FAQs | Public; catalog/home respect maintenance; price visibility configured server-side |
+| OTP/password login/register/reset | Rate limited, hashed single-use expiring proofs; registration flag enforced |
+| Store profile, sessions, addresses, cart, favourites, templates, notifications, device tokens | Active customer JWT, audience `kabisa-store`, active server session, business ownership |
+| Private customer documents/prescriptions/invoices | Customer ownership checked before authenticated file response |
+| Quote and order placement | Customer ownership; verification policy and suspension rejection; live server money/availability; idempotency |
+| Cancel/reorder | Owned order; cancellation only PENDING; reorder revalidates sellable products |
+| `/api/v1/storefront/*` read | `storefront.view` |
+| Storefront create/edit/upload/settings/bulk activation | `storefront.manage` |
+| Storefront per-row or bulk deletion | `storefront.delete` (bulk also needs manage) |
+| Storefront Excel export | `storefront.export` |
+
+Four permissions are added to super_admin and manager; other roles retain their access. There are 60 total permission codes. Customer tokens are rejected by admin dependencies and admin tokens by customer dependencies. Price/cost/batch/warehouse data is explicitly projected into safe DTOs, with generated OpenAPI contracts for key commerce responses. Refresh tokens and OTPs are HMAC-hashed; native SecureStore and browser sessionStorage are separate implementations of the shared token provider. Customer HTTP logs omit IPs; OTP console messages omit recipient identifiers and are development-only. Audit records retain necessary internal entity references.
+
+Production note: HTTPS, trusted proxy configuration, a real notification gateway and a shared edge rate limit when scaling beyond one process are deployment responsibilities. Account erasure/retention requires an approved business process before mobile store release.

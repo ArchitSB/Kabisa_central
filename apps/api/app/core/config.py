@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     sensitive_rate_limit_requests: int = Field(default=180, ge=10, le=2000)
     sensitive_rate_limit_window_seconds: int = Field(default=60, ge=10, le=3600)
 
+    store_origin: str = "http://localhost:5174"
+    public_store_url: str = "http://localhost:5174"
+    notification_provider: str = "console"
+    notification_gateway_url: str = ""
+    notification_gateway_token: str = ""
+    notification_sender: str = "Kabisa"
+    payment_provider: str = "manual"
+    payment_webhook_secret: str = ""
+    store_demo_password: str = ""
+
     database_url: str = "postgresql+asyncpg://kabisa:kabisa_local@localhost:5432/kabisa"
     test_database_url: str = "postgresql+asyncpg://kabisa:kabisa_local@localhost:5432/kabisa_test"
     db_echo: bool = False
@@ -65,10 +75,16 @@ class Settings(BaseSettings):
         if not self.api_cors_origins:
             raise ValueError("API_CORS_ORIGINS must contain at least one trusted origin.")
         if not self.is_development:
+            if self.store_demo_password:
+                raise ValueError("Demo accounts may only be seeded in development.")
             if "*" in self.api_cors_origins:
                 raise ValueError("Wildcard CORS origins are forbidden outside development.")
             if any(not origin.startswith("https://") for origin in self.api_cors_origins):
                 raise ValueError("Production CORS origins must use HTTPS.")
+            if not self.store_origin.startswith("https://") or not self.public_store_url.startswith(
+                "https://"
+            ):
+                raise ValueError("Production storefront URLs must use HTTPS.")
         return self
 
 

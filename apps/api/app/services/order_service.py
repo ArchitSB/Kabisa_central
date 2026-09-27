@@ -16,6 +16,7 @@ from app.models import (
     Delivery,
     Order,
     OrderItem,
+    OrderSource,
     OrderStatus,
     OrderStatusHistory,
     Payment,
@@ -137,8 +138,21 @@ async def warehouse_on_hand_many(
     return {product_id: int(quantity or 0) for product_id, quantity in rows}
 
 
-async def _quote(session: AsyncSession, payload: OrderCreate):
-    customer = await _verified_customer(session, payload.customer_id)
+async def _quote(session: AsyncSession, payload: OrderCreate, *, require_verified: bool = True):
+    if require_verified:
+        customer = await _verified_customer(session, payload.customer_id)
+    else:
+        customer = await session.get(Customer, payload.customer_id)
+        if (
+            customer is None
+            or customer.deleted_at is not None
+            or customer.status in {CustomerStatus.SUSPENDED, CustomerStatus.REJECTED}
+        ):
+            raise AppError(
+                status_code=403,
+                detail="This account cannot place orders.",
+                code="customer_restricted",
+            )
     await _active_warehouse(session, payload.warehouse_id)
     totals = await pricing_service.price_order(
         session,
@@ -228,9 +242,15 @@ async def _next_order_number(session: AsyncSession) -> str:
 async def create_order(
     session: AsyncSession,
     payload: OrderCreate,
-    current_user: AdminUser,
+    current_user: AdminUser | None,
+    *,
+    source: OrderSource = OrderSource.ADMIN,
+    commit: bool = True,
+    require_verified: bool = True,
+    delivery_fee: Decimal = Decimal("0"),
 ) -> OrderDetailRead:
-    customer, totals, _, coupon = await _quote(session, payload)
+    customer, totals, _, coupon = await _quote(session, payload, require_verified=require_verified)
+    actor_id = current_user.id if current_user else None
     order = Order(
         order_number=await _next_order_number(session),
         customer_id=customer.id,
@@ -242,12 +262,13 @@ async def create_order(
         subtotal=totals.subtotal,
         discount_total=totals.discount_total,
         tax_total=totals.tax_total,
-        total_amount=totals.total,
+        total_amount=totals.total + delivery_fee,
+        source=source,
         delivery_address=(payload.delivery_address or "").strip() or None,
         delivery_location=(payload.delivery_location or "").strip() or None,
         notes=(payload.notes or "").strip() or None,
-        created_by=current_user.id,
-        updated_by=current_user.id,
+        created_by=actor_id,
+        updated_by=actor_id,
     )
     session.add(order)
     await session.flush()
@@ -261,8 +282,8 @@ async def create_order(
                 price_tier_id=customer.price_tier_id,
                 line_discount=line.line_discount,
                 line_total=line.line_total,
-                created_by=current_user.id,
-                updated_by=current_user.id,
+                created_by=actor_id,
+                updated_by=actor_id,
             )
         )
     session.add(
@@ -270,11 +291,18 @@ async def create_order(
             order_id=order.id,
             from_status=None,
             to_status=OrderStatus.PENDING,
-            note="Order created by admin.",
-            changed_by=current_user.id,
+            note=(
+                "Order placed by customer."
+                if source == OrderSource.CUSTOMER
+                else "Order created by admin."
+            ),
+            changed_by=actor_id,
         )
     )
-    await session.commit()
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
     return await order_detail(session, order.id)
 
 
@@ -355,7 +383,12 @@ async def update_order(
     order.subtotal = totals.subtotal
     order.discount_total = totals.discount_total
     order.tax_total = totals.tax_total
-    order.total_amount = totals.total
+    from app.models.store import StoreOrderMetadata
+
+    delivery_fee = await session.scalar(
+        select(StoreOrderMetadata.delivery_fee).where(StoreOrderMetadata.order_id == order.id)
+    )
+    order.total_amount = totals.total + (delivery_fee or Decimal("0"))
     order.delivery_address = create_payload.delivery_address
     order.delivery_location = create_payload.delivery_location
     order.notes = create_payload.notes

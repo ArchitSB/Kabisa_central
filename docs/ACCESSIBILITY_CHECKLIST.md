@@ -24,3 +24,11 @@ design system and the ui-ux-pro-max pre-delivery criteria.
 Run keyboard-only and screen-reader smoke tests in the target production
 browser/OS combination before each release, especially after changes to shared
 drawers, tables, tabs, navigation, or forms.
+
+## Customer web and native implementation
+
+The storefront's production mobile Lighthouse accessibility score is **100**. Normal reading/action text is at least 12 px, contrast failures found in search, product metadata and footer text were corrected, and the brand's visible label matches its accessible name. Four responsive widths (375, 768, 1024 and 1440 px) were exercised across public and authenticated journeys, including order confirmation, with no horizontal overflow.
+
+Browser checks exercised the Radix mobile navigation focus trap and Escape dismissal, reduced-motion behavior, labelled forms, status/empty/error feedback, and persistent EN/SW locale choice. Font subsetting retains all Latin/punctuation/currency glyphs needed for current English/Swahili UI; other scripts use system fallback. See [screenshots and QA report](STOREFRONT_BUILD_REPORT.md#verification-record).
+
+The Expo preview was checked across public and signed-in account/product/order screens. Empty-string React Native children were removed; corrected routes emitted no console errors. Native browser rendering is not a substitute for TalkBack/VoiceOver, device font scaling, keyboard behavior and touch testing on a signed app. Those remain release device checks in [Mobile readiness](MOBILE_READINESS.md).

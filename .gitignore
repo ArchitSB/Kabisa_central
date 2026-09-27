@@ -24,3 +24,8 @@ apps/admin-web/.env.local
 *.tsbuildinfo
 apps/admin-web/vite.config.js
 apps/admin-web/vite.config.d.ts
+
+.expo/
+.playwright-mcp/
+apps/mobile/android/
+apps/mobile/ios/

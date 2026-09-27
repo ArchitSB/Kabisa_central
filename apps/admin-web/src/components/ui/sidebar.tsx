@@ -66,6 +66,10 @@ const navigation: Array<{ label: string; items: NavItem[] }> = [
     ],
   },
   {
+    label: "Storefront",
+    items: [{ label: "Storefront", href: "/storefront", icon: Store, permission: "storefront.view" }],
+  },
+  {
     label: "Management",
     items: [
       {

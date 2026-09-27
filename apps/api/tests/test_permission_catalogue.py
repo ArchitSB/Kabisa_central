@@ -12,7 +12,7 @@ from app.seed.catalogue import (
 def test_permission_catalogue_and_role_mappings_are_complete() -> None:
     validate_catalogue()
 
-    assert len(PERMISSION_SEEDS) == EXPECTED_PERMISSION_COUNT == 56
+    assert len(PERMISSION_SEEDS) == EXPECTED_PERMISSION_COUNT == 60
     assert len(ALL_PERMISSION_CODES) == EXPECTED_PERMISSION_COUNT
     assert {role.name for role in ROLE_SEEDS} == set(ROLE_PERMISSION_CODES)
     assert {

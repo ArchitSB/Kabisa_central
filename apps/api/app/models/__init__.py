@@ -98,3 +98,5 @@ __all__ = [
     "VehicleType",
     "Warehouse",
 ]
+
+from app.models import store as store  # noqa: E402

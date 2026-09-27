@@ -140,3 +140,16 @@ Never hardcode a currency symbol. Display the currency code read from
 Three.js, particle systems, custom cursors, SiriOrb, DynamicIsland, FluidMorph,
 MatrixCard, CursorFollow, ScrambleHover, WaveText, and TypewriterText. SmoothUI
 may only be cherry-picked from the allowlist recorded in the frontend registry policy.
+
+
+## Storefront and native customer experience
+
+The storefront is the warm, spacious customer expression of the same Kabisa identity. The admin retains its existing operational design. [Store design DNA](kabisa-store.dna.json) records tokens, qualitative style and visual effects.
+
+`packages/design-tokens/tokens.json` is the shared data source for the Tailwind preset and native color/spacing data. Primary teal remains #50A0C0; #366F8A and #2C596F provide readable actions. Warm ivory #F7F5EF belongs to marketing areas. Display type is Fraunces, body type Inter. Commerce uses clear white panels, explicit prices/statuses and restrained motion.
+
+Web layout: 1344px container; 48px desktop gutters and 19px phone gutters. Test 375, 768, 1024 and 1440px. Product grids use two phone columns and wider desktop rows. Radix handles the focus-trapped mobile drawer. All editable content resolves from storefront APIs. Generic interface copy is in `packages/core/src/en.ts`; Swahili has an intentional translation scaffold.
+
+Home-only GSAP/Lenis loads lazily; reduced motion and slower devices bypass it. Checkout never depends on animation. Lottie confirmation plays once. Native navigation observes reduced motion. No WebGL or 3D payload was added.
+
+The hero is a generated, unbranded editorial still life, **not a photograph of stock for sale**. Product cards use uploaded inventory photography or an explicit generic fallback. No testimonials, licence claims, scarcity or facility-count numbers were invented.

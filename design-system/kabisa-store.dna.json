@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "name": "Kabisa Storefront",
+    "created_at": "2026-09-12",
+    "description": "Warm, editorial B2B healthcare commerce. A sibling of the established Kabisa admin identity.",
+    "source_references": [
+      "design-system/MASTER.md",
+      "User Tier 2 storefront brief",
+      "UI/UX Pro Max healthcare and ecommerce guidance",
+      "Local browser checks; generated editorial healthcare still life"
+    ]
+  },
+  "design_system": {
+    "color": {
+      "palette_type": "Kabisa teal with warm ivory and quiet botanical tints",
+      "tokens": {
+        "primary": {
+          "50": "#F4FAFC",
+          "100": "#E4F2F6",
+          "200": "#C4E2EA",
+          "300": "#9ECFDC",
+          "400": "#74B7CB",
+          "500": "#50A0C0",
+          "600": "#4187A6",
+          "700": "#366F8A",
+          "800": "#2C596F",
+          "900": "#244A5C"
+        },
+        "background": "#F6F7F6",
+        "cream": "#F7F5EF",
+        "surface": "#FFFFFF",
+        "text": "#14181A",
+        "secondary": "#5A6672",
+        "muted": "#68747E",
+        "border": "#E8EAE9",
+        "success": "#1E7A4D",
+        "warning": "#9A5C00",
+        "danger": "#C4382E"
+      },
+      "rules": [
+        "Deep teal 700/800 for actions and small text. Teal 500 is decorative.",
+        "Semantic labels include words or icons; never color alone.",
+        "No fabricated stock counts, scarcity, reviews or facility statistics."
+      ]
+    },
+    "typography": {
+      "display": {
+        "family": "Fraunces",
+        "weight": 500,
+        "scale": [
+          28,
+          36,
+          48,
+          64
+        ]
+      },
+      "body": {
+        "family": "Inter",
+        "weight": [
+          400,
+          500,
+          600
+        ],
+        "scale": [
+          12,
+          14,
+          16
+        ]
+      }
+    },
+    "spacing": [
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      32,
+      40,
+      48,
+      64,
+      80,
+      96
+    ],
+    "border_radius": {
+      "control": 10,
+      "card": 16,
+      "hero": 24
+    },
+    "layout": {
+      "max_width": 1344,
+      "breakpoints": [
+        375,
+        768,
+        1024,
+        1440
+      ],
+      "mobile_gutter": 19,
+      "desktop_gutter": 48,
+      "product_grid": "2 columns on phones; 3\u20134 on wider screens; catalog filters collapse on small screens"
+    },
+    "components": [
+      "Radix accessible navigation drawer",
+      "Live tier-priced product cards",
+      "Quick Order match review",
+      "Server-quoted checkout",
+      "Account verification panel",
+      "Native Expo screens and tab navigation"
+    ]
+  },
+  "design_style": {
+    "keywords": [
+      "calm",
+      "dependable",
+      "editorial",
+      "tactile",
+      "spacious",
+      "human"
+    ],
+    "composition": "Large display typography and genuine product information, offset by a decorative unbranded still life. Compact, explicit actions on buying paths.",
+    "imagery": "Generated hero is identified as illustrative. Inventory imagery comes only from product records; missing photographs use a clearly generic fallback.",
+    "surfaces": "Warm ivory hero, white commerce cards, fine borders and restrained shadows. No ornamental dashboard glass effects.",
+    "trust": "Company TIN/licence and office contacts from existing settings; TMDA registration and prescription flags from products; account verification and real order status."
+  },
+  "visual_effects": {
+    "motion_tokens": {
+      "quick": 120,
+      "standard": 220,
+      "spatial": 320,
+      "easing": [
+        0.2,
+        0,
+        0,
+        1
+      ]
+    },
+    "route_transition": "Small opacity/position changes; global reduced-motion preference respected.",
+    "marketing": "GSAP + Lenis are loaded only on the home route and gated by reduced motion, connection and device capability.",
+    "feedback": "One-shot Lottie confirmation; subtle product hover and native press feedback.",
+    "loading": "Web skeletons; native activity indicators for live requests.",
+    "webgl": "Omitted to preserve the commerce performance budget.",
+    "accessibility": "Disable nonessential motion on reduced motion; keyboard focus visible; native labels and 44px touch controls.",
+    "budgets": {
+      "hero_webp_bytes": 34588,
+      "target_lcp_seconds": 2.5,
+      "target_tti_seconds": 3.5,
+      "note": "Targets require measurement on the deployed service; local verification evidence is recorded separately."
+    }
+  }
+}

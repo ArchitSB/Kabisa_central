@@ -9,3 +9,10 @@
 **/node_modules
 **/dist
 apps/api/uploads
+
+.env.*
+**/.env*
+**/.expo
+**/*.tsbuildinfo
+.playwright-mcp
+kabisa-store-desktop.png

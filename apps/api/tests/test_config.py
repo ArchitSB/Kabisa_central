@@ -16,6 +16,8 @@ def test_production_accepts_long_non_placeholder_jwt_secret() -> None:
         api_env="production",
         jwt_secret_key="a-production-secret-with-at-least-32-characters",
         api_cors_origins=["https://admin.kabisapharma.co.tz"],
+        store_origin="https://store.kabisapharma.co.tz",
+        public_store_url="https://store.kabisapharma.co.tz",
     )
 
     assert production_settings.api_env == "production"

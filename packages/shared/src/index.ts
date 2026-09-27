@@ -1,6 +1,5 @@
-/**
- * Generated OpenAPI types land in this package from Phase 1 onward.
- */
+/** Regenerate with: python scripts/export_openapi.py && pnpm --filter @kabisa/shared generate */
+export type { paths, components, operations } from "./generated-api";
 export type ApiListResponse<T> = {
   items: T[];
   total: number;
