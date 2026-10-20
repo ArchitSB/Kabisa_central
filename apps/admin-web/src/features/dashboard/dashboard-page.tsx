@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  ChevronRight,
+  ShieldCheck,
   ArrowDownRight,
   ArrowUpRight,
   Boxes,
@@ -23,7 +25,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { PageHeader } from "@/components/ui/page-header";
 import { ErrorState, LoadingState } from "@/components/ui/resource-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useHasPermission } from "@/features/auth/auth-store";
@@ -36,7 +37,6 @@ import {
 } from "@/features/orders/orders.data";
 import { downloadReport, getDashboardSummary } from "@/features/reporting/reporting-api";
 import type { DashboardMetric } from "@/features/reporting/types";
-import { copy } from "@/lib/copy";
 import { cn, formatCompact, formatMoney } from "@/lib/utils";
 
 type Kpi = {
@@ -61,6 +61,8 @@ export function DashboardPage() {
   const canExportReports = useHasPermission("reports.export");
   const canCreateOrders = useHasPermission("orders.create");
   const canViewInventory = useHasPermission("inventory.view");
+  const canViewCustomers = useHasPermission("customers.view");
+  const canViewProducts = useHasPermission("products.view");
   const canViewOrders = useHasPermission("orders.view");
   const dashboard = useQuery({
     queryKey: ["dashboard-summary", warehouseId],
@@ -138,6 +140,7 @@ export function DashboardPage() {
     () =>
       (data?.sales_pulse ?? []).map((point) => ({
         ...point,
+        gross_sales: Number(point.gross_sales),
         label: new Intl.DateTimeFormat("en-TZ", { weekday: "short" }).format(
           new Date(`${point.date}T12:00:00`),
         ),
@@ -145,7 +148,8 @@ export function DashboardPage() {
     [data?.sales_pulse],
   );
   const pulseTotal = useMemo(
-    () => (data?.sales_pulse ?? []).reduce((sum, point) => sum + point.gross_sales, 0),
+    () =>
+      (data?.sales_pulse ?? []).reduce((sum, point) => sum + Number(point.gross_sales), 0),
     [data?.sales_pulse],
   );
 
@@ -159,166 +163,147 @@ export function DashboardPage() {
     );
   }
 
+  const attention =
+    (data.orders_awaiting_review ?? 0) +
+    (data.customers_under_review ?? 0) +
+    (data.products_awaiting_verification ?? 0);
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow={new Intl.DateTimeFormat("en-TZ", { dateStyle: "full" }).format(new Date())}
-        title={copy.dashboard.title}
-        subtitle={copy.dashboard.subtitle}
-        actions={
-          canExportReports || canCreateOrders ? (
-            <>
-              {canExportReports ? (
-                <Button
-                  variant="secondary"
-                  disabled={exportReport.isPending}
-                  onClick={() => exportReport.mutate()}
-                >
-                  <Download aria-hidden="true" />
-                  {exportReport.isPending ? "Preparing…" : copy.dashboard.actions.report}
+    <div className="ops-overview">
+      <header className="ops-overview-header">
+        <div>
+          <div className="ops-eyebrow">
+            <CalendarClock size={13} />
+            {new Intl.DateTimeFormat("en-TZ", {
+              dateStyle: "full",
+              timeZone: "Africa/Dar_es_Salaam",
+            }).format(new Date())}
+          </div>
+          <h1>Your operations, in focus.</h1>
+          <p>A clear view of the work that keeps better care moving.</p>
+        </div>
+        <div className="ops-overview-actions">
+          {canExportReports && (
+            <Button
+              variant="secondary"
+              disabled={exportReport.isPending}
+              onClick={() => exportReport.mutate()}
+            >
+              <Download />
+              {exportReport.isPending ? "Preparing…" : "Export report"}
+            </Button>
+          )}
+          {canCreateOrders && (
+            <CreateOrderDrawer
+              trigger={
+                <Button>
+                  <Plus />
+                  Create order
                 </Button>
-              ) : null}
-              {canCreateOrders ? (
-                <CreateOrderDrawer
-                  trigger={
-                    <Button>
-                      <Plus aria-hidden="true" />
-                      {copy.dashboard.actions.order}
-                    </Button>
-                  }
-                />
-              ) : null}
-            </>
-          ) : null
-        }
-      />
-
-      {canViewInventory ? (
-        <div className="flex justify-end">
-          <label className="flex items-center gap-2 text-xs font-semibold text-secondary">
-            Warehouse
+              }
+            />
+          )}
+        </div>
+      </header>
+      <div className="ops-context-strip">
+        <span>
+          <strong>Business overview</strong> <span aria-hidden="true"> / </span> Current
+          operational data
+        </span>
+        {canViewInventory && (
+          <label>
+            Stock location
             <select
-              className="control-base min-w-52"
+              className="control-base"
               value={warehouseId}
-              onChange={(event) => setWarehouseId(event.target.value)}
+              onChange={(e) => setWarehouseId(e.target.value)}
             >
               <option value="">All warehouses</option>
-              {warehouses.data?.items.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
+              {warehouses.data?.items.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
                 </option>
               ))}
             </select>
           </label>
-        </div>
-      ) : null}
-
-      <section
-        aria-label="Key performance indicators"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7"
-      >
-        {kpis.map((item, index) => {
-          const Icon = item.icon;
-          const delta = item.metric.delta_percent;
-          const DeltaIcon =
-            delta === null ? Minus : delta >= 0 ? ArrowUpRight : ArrowDownRight;
-          return (
-            <motion.article
-              key={item.label}
-              initial={
-                prefersReducedMotion ? false : { opacity: 0, transform: "translateY(12px)" }
-              }
-              animate={{ opacity: 1, transform: "translateY(0)" }}
-              transition={{
-                duration: 0.22,
-                delay: prefersReducedMotion ? 0 : Math.min(index * 0.025, 0.15),
-                ease: [0.2, 0, 0, 1],
-              }}
-              className="surface-card min-w-0 p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span
-                  className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-50 text-primary-700",
-                    item.warning && "bg-warning-surface text-warning",
-                  )}
-                >
-                  <Icon aria-hidden="true" className="size-[18px]" />
-                </span>
-                <span
-                  className={cn(
-                    "numeric inline-flex items-center text-[11px] font-semibold",
-                    delta === null
-                      ? "text-muted"
-                      : item.warning && delta > 0
-                        ? "text-warning"
-                        : delta >= 0
-                          ? "text-success"
-                          : "text-secondary",
-                  )}
-                  title={item.metric.comparison}
-                >
-                  <DeltaIcon aria-hidden="true" className="size-3" />
-                  {delta === null ? "New" : `${delta > 0 ? "+" : ""}${delta}%`}
-                </span>
-              </div>
-              <p className="mt-5 text-xs font-semibold text-secondary">{item.label}</p>
-              <p className="numeric mt-1 truncate text-[21px] font-semibold tracking-[-0.02em] text-foreground">
-                {item.value}
-              </p>
-              <p className="mt-1 truncate text-[11px] text-muted">{item.helper}</p>
-            </motion.article>
-          );
-        })}
+        )}
+      </div>
+      <section aria-label="Key performance indicators" className="ops-metric-grid">
+        {kpis
+          .filter((k) => !k.warning)
+          .map((item, index) => {
+            const delta = item.metric.delta_percent;
+            const DeltaIcon =
+              delta === null ? Minus : delta >= 0 ? ArrowUpRight : ArrowDownRight;
+            return (
+              <motion.article
+                key={item.label}
+                className="ops-metric"
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: prefersReducedMotion ? 0 : 0.3,
+                  delay: prefersReducedMotion ? 0 : index * 0.045,
+                  ease: [0.2, 0, 0, 1],
+                }}
+              >
+                <div className="ops-metric-heading">
+                  <span>{item.label}</span>
+                  <span className="ops-metric-icon">
+                    <item.icon size={16} />
+                  </span>
+                </div>
+                <p className="ops-metric-value">{item.value}</p>
+                <div className="ops-metric-footer">
+                  <span
+                    className={cn(
+                      "ops-metric-delta",
+                      delta !== null && delta < 0 && "text-secondary",
+                    )}
+                  >
+                    <DeltaIcon size={12} />
+                    {delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta}%`}
+                  </span>
+                  <span>{item.metric.comparison}</span>
+                </div>
+                <p className="ops-metric-helper">{item.helper}</p>
+              </motion.article>
+            );
+          })}
       </section>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
-        {canViewOrders ? (
-          <section
-            className="surface-card overflow-hidden"
-            aria-labelledby="sales-pulse-title"
-          >
-            <div className="flex flex-col gap-3 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="ops-overview-main">
+        {canViewOrders && (
+          <section className="ops-panel" aria-labelledby="sales-pulse-title">
+            <div className="ops-panel-heading">
               <div>
-                <h2
-                  id="sales-pulse-title"
-                  className="font-display text-xl font-semibold tracking-tight"
-                >
-                  {copy.dashboard.salesTitle}
-                </h2>
-                <p className="mt-1 text-xs text-secondary">
-                  {copy.dashboard.salesSubtitle}
-                </p>
+                <h2 id="sales-pulse-title">Sales performance</h2>
+                <p>Committed orders over the last seven days</p>
               </div>
-              <span className="inline-flex items-center gap-2 text-xs font-semibold text-secondary">
-                <span className="size-2 rounded-full bg-primary-500" /> Gross sales ·{" "}
-                {data.currency}
+              <span className="rounded-md border border-border px-2 py-1 text-[10px] text-secondary">
+                Last 7 days
               </span>
             </div>
-            <div className="p-5">
-              <div className="mb-5 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-secondary">Last 7 days</p>
-                  <p className="numeric mt-1 text-2xl font-semibold tracking-tight">
-                    {formatMoney(pulseTotal, data.currency)}
-                  </p>
-                </div>
-                <StatusBadge label="Committed sales" tone="success" />
-              </div>
+            <div className="ops-chart-summary">
+              <strong>{formatMoney(pulseTotal, data.currency)}</strong>
+              <span>
+                <i />
+                Gross sales
+              </span>
+            </div>
+            <div className="ops-chart">
               <ChartContainer>
                 <AreaChart data={pulse} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="sales-fill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#50A0C0" stopOpacity={0.24} />
-                      <stop offset="100%" stopColor="#50A0C0" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#193c69" stopOpacity={0.16} />
+                      <stop offset="100%" stopColor="#193c69" stopOpacity={0.01} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="#E8EAE9" strokeDasharray="4 4" />
+                  <CartesianGrid vertical={false} stroke="#e8edf4" strokeDasharray="3 5" />
                   <XAxis
                     dataKey="label"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "#68747E", fontSize: 11 }}
+                    tick={{ fill: "#65758b", fontSize: 10 }}
                   />
                   <YAxis hide />
                   <ChartTooltip
@@ -331,157 +316,174 @@ export function DashboardPage() {
                   <Area
                     type="monotone"
                     dataKey="gross_sales"
-                    stroke="#4187A6"
-                    strokeWidth={3}
+                    stroke="#193c69"
+                    strokeWidth={2.5}
                     fill="url(#sales-fill)"
                     isAnimationActive={!prefersReducedMotion}
-                    animationDuration={220}
+                    animationDuration={450}
                   />
                 </AreaChart>
               </ChartContainer>
             </div>
-          </section>
-        ) : null}
-
-        {canViewInventory ? (
-          <section
-            className="surface-card overflow-hidden"
-            aria-labelledby="watchlist-title"
-          >
-            <div className="border-b border-border px-5 py-5">
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-control bg-warning-surface text-warning">
-                  <AlertTriangle aria-hidden="true" className="size-[18px]" />
-                </span>
-                <div>
-                  <h2
-                    id="watchlist-title"
-                    className="font-display text-xl font-semibold tracking-tight"
-                  >
-                    {copy.dashboard.watchlistTitle}
-                  </h2>
-                  <p className="mt-0.5 text-xs text-secondary">
-                    {copy.dashboard.watchlistSubtitle}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="divide-y divide-border">
-              {data.inventory_watchlist.length ? (
-                data.inventory_watchlist.map((item) => (
-                  <button
-                    key={`${item.product_id}-${item.batch_number}`}
-                    type="button"
-                    className="flex w-full cursor-pointer items-center gap-3 px-5 py-4 text-left transition-colors duration-micro hover:bg-[var(--row-hover)]"
-                    onClick={() => navigate(`/products/${item.product_id}`)}
-                  >
-                    <span className="size-2 shrink-0 rounded-full bg-warning" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">
-                        {item.product_name}
-                      </span>
-                      <span className="numeric mt-0.5 block truncate text-[11px] text-secondary">
-                        {item.warehouse_name} · {item.batch_number} · {item.on_hand} on-hand
-                      </span>
-                    </span>
-                    <StatusBadge
-                      label={
-                        item.alert_type === "EXPIRING_SOON" ? "Expiring soon" : "Low stock"
-                      }
-                      tone="warning"
-                    />
-                  </button>
-                ))
-              ) : (
-                <p className="px-5 py-10 text-center text-sm text-secondary">
-                  No inventory alerts need attention.
-                </p>
-              )}
-            </div>
-            <div className="border-t border-border bg-[#FBFCFB] px-5 py-3">
-              <Button asChild variant="ghost" size="sm" className="-ml-3">
-                <Link to="/inventory">View inventory</Link>
-              </Button>
+            <div className="ops-chart-caption">
+              <ShieldCheck size={13} />
+              Figures reflect recorded orders; cancelled orders are excluded.
             </div>
           </section>
-        ) : null}
-      </div>
-
-      {canViewOrders ? (
-        <section
-          className="surface-card overflow-hidden"
-          aria-labelledby="recent-orders-title"
-        >
-          <div className="flex flex-col gap-3 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2
-                id="recent-orders-title"
-                className="font-display text-xl font-semibold tracking-tight"
-              >
-                {copy.dashboard.recentTitle}
-              </h2>
-              <p className="mt-1 text-xs text-secondary">{copy.dashboard.recentSubtitle}</p>
-            </div>
-            <Button asChild variant="secondary" size="sm">
-              <Link to="/orders">View all orders</Link>
-            </Button>
+        )}
+        <section className="ops-attention" aria-labelledby="attention-title">
+          <div className="ops-attention-eyebrow">
+            <span className="size-1.5 rounded-full bg-[#ff8a92]" />
+            Your next actions
           </div>
-          <div className="scrollbar-subtle overflow-x-auto">
-            <table className="w-full min-w-[780px]" aria-label="Recent orders">
-              <thead className="bg-[#FBFCFB]">
-                <tr className="border-b border-border">
-                  {["Order", "Customer", "Location", "Payment", "Total", "Status"].map(
-                    (label) => (
-                      <th
-                        key={label}
-                        className="h-11 px-5 text-left text-[10px] font-bold uppercase tracking-[0.09em] text-secondary"
-                      >
-                        {label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {data.recent_orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-border transition-colors duration-micro last:border-0 hover:bg-[var(--row-hover)]"
-                  >
-                    <td className="h-14 px-5">
-                      <Link
-                        className="font-mono text-xs font-semibold text-primary-700 hover:text-primary-800"
-                        to={`/orders/${order.id}`}
-                      >
-                        {order.order_number}
-                      </Link>
-                    </td>
-                    <td className="px-5 text-sm font-semibold">{order.customer_name}</td>
-                    <td className="px-5 text-sm text-secondary">
-                      {order.delivery_location ?? "—"}
-                    </td>
-                    <td className="px-5">
-                      <StatusBadge
-                        label={paymentStatusLabels[order.payment_status]}
-                        tone={order.payment_status === "PAID" ? "success" : "warning"}
-                      />
-                    </td>
-                    <td className="numeric px-5 text-sm font-semibold">
-                      {formatMoney(order.total_amount, data.currency)}
-                    </td>
-                    <td className="px-5">
-                      <StatusBadge
-                        label={orderStatusLabels[order.status]}
-                        tone={orderTone(order.status)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h2 id="attention-title">Keep things moving.</h2>
+          <p>
+            {attention
+              ? `${attention} items across your review queues.`
+              : "Your review queues are up to date."}{" "}
+            Pick up where your team needs you.
+          </p>
+          <div className="ops-action-list">
+            {canViewOrders && (
+              <Link className="ops-action-link" to="/orders">
+                <ClipboardList />
+                <span>
+                  Review orders<small>Confirm and prepare for fulfilment</small>
+                </span>
+                <strong>{data.orders_awaiting_review ?? 0}</strong>
+                <ChevronRight />
+              </Link>
+            )}
+            {canViewCustomers && (
+              <Link className="ops-action-link" to="/customers">
+                <Store />
+                <span>
+                  Verify businesses<small>Review customer applications</small>
+                </span>
+                <strong>{data.customers_under_review ?? 0}</strong>
+                <ChevronRight />
+              </Link>
+            )}
+            {canViewProducts && (
+              <Link className="ops-action-link" to="/products">
+                <PackageCheck />
+                <span>
+                  Approve products<small>Check catalog readiness</small>
+                </span>
+                <strong>{data.products_awaiting_verification ?? 0}</strong>
+                <ChevronRight />
+              </Link>
+            )}
           </div>
         </section>
-      ) : null}
+      </div>
+      <section className="ops-risk-strip" aria-label="Inventory and balance overview">
+        {kpis
+          .filter((k) => k.warning)
+          .map((item) => (
+            <div className="ops-risk-item" key={item.label}>
+              <item.icon />
+              <span>
+                <strong>{item.value}</strong>
+                <small>{item.label}</small>
+              </span>
+            </div>
+          ))}
+      </section>
+      <div className="ops-bottom-grid">
+        {canViewOrders && (
+          <section className="ops-panel" aria-labelledby="recent-orders-title">
+            <div className="ops-panel-heading">
+              <div>
+                <h2 id="recent-orders-title">Latest orders</h2>
+                <p>The latest activity from your customers</p>
+              </div>
+              <Link to="/orders">
+                All orders <ArrowUpRight size={14} />
+              </Link>
+            </div>
+            <div className="overflow-x-auto scrollbar-subtle">
+              <table className="ops-recent-table" aria-label="Recent orders">
+                <thead>
+                  <tr>
+                    {["Order / customer", "Total", "Payment", "Status"].map((label) => (
+                      <th key={label}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.recent_orders.map((order) => (
+                    <tr key={order.id}>
+                      <td>
+                        <Link to={`/orders/${order.id}`}>{order.order_number}</Link>
+                        <small>{order.customer_name}</small>
+                      </td>
+                      <td className="numeric whitespace-nowrap">
+                        {formatMoney(order.total_amount, data.currency)}
+                      </td>
+                      <td>
+                        <StatusBadge
+                          label={paymentStatusLabels[order.payment_status]}
+                          tone={order.payment_status === "PAID" ? "success" : "warning"}
+                        />
+                      </td>
+                      <td>
+                        <StatusBadge
+                          label={orderStatusLabels[order.status]}
+                          tone={orderTone(order.status)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!data.recent_orders.length && (
+                <p className="ops-empty">New orders will appear here as they arrive.</p>
+              )}
+            </div>
+          </section>
+        )}
+        {canViewInventory && (
+          <section className="ops-panel" aria-labelledby="watchlist-title">
+            <div className="ops-panel-heading">
+              <div>
+                <h2 id="watchlist-title">Stock attention</h2>
+                <p>Low stock and approaching expiry</p>
+              </div>
+              <Link to="/inventory" aria-label="View inventory">
+                <ArrowUpRight size={16} />
+              </Link>
+            </div>
+            {data.inventory_watchlist.length ? (
+              data.inventory_watchlist.slice(0, 5).map((item) => (
+                <button
+                  key={`${item.product_id}-${item.warehouse_id}-${item.batch_number}`}
+                  className="ops-stock-row"
+                  onClick={() =>
+                    navigate(
+                      canViewProducts ? `/products/${item.product_id}` : "/inventory",
+                    )
+                  }
+                >
+                  <span className="ops-stock-symbol">
+                    <Boxes size={16} />
+                  </span>
+                  <span>
+                    <strong>{item.product_name}</strong>
+                    <small>
+                      {item.alert_type === "EXPIRING_SOON" ? "Expiring soon" : "Low stock"}{" "}
+                      · {item.on_hand} on hand · {item.warehouse_name}
+                    </small>
+                  </span>
+                  <AlertTriangle size={14} />
+                </button>
+              ))
+            ) : (
+              <p className="ops-empty">No inventory alerts need attention.</p>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

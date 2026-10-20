@@ -6,7 +6,13 @@ from fastapi.responses import Response
 from sqlalchemy import delete, func, select
 
 from app.core.errors import AppError
-from app.core.store_deps import CurrentCustomer, StoreDB, rate_limit, store_available
+from app.core.store_deps import (
+    CurrentCustomer,
+    StoreDB,
+    rate_limit,
+    require_verified_customer,
+    store_available,
+)
 from app.models import Order, OrderStatus
 from app.models.store import CartItem
 from app.schemas.store import CartLine, CartMerge, Checkout
@@ -16,7 +22,7 @@ from app.services import store_commerce_service as commerce
 from app.services.store_content_service import store_config
 from app.services.store_providers import payment_provider
 
-router = APIRouter(dependencies=[Depends(store_available)])
+router = APIRouter(dependencies=[Depends(store_available), Depends(require_verified_customer)])
 
 
 @router.get("/cart", response_model=CartRead)

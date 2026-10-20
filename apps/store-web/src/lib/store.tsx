@@ -67,11 +67,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     queryFn: () => api.get<Customer>("/me"),
     enabled: authenticated,
     retry: false,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
   const cart = useQuery({
     queryKey: ["cart"],
     queryFn: () => api.get<Cart>("/cart"),
-    enabled: authenticated,
+    enabled: customer.data?.customer.status === "VERIFIED",
     retry: false,
   });
   const refresh = useCallback(async () => {
@@ -150,7 +152,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const login = useCallback(async (tokens: Tokens) => {
     tokenStore.set(tokens);
-    const items = readGuest();
+    const profile = await api.get<Customer>("/me");
+    queryClient.setQueryData(["me"], profile);
+    const items = profile.customer.status === "VERIFIED" ? readGuest() : [];
     if (items.length) {
       try {
         await api.post("/cart/merge", {

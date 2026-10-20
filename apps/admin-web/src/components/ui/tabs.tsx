@@ -1,3 +1,4 @@
+import { motion, useReducedMotion } from "motion/react";
 import { useId, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ export function Tabs({
   ariaLabel: string;
 }) {
   const instanceId = useId();
+  const reduced = useReducedMotion();
   const [active, setActive] = useState(defaultValue ?? items[0]?.value);
   const current = items.find((item) => item.value === active) ?? items[0];
 
@@ -27,7 +29,7 @@ export function Tabs({
       <div
         role="tablist"
         aria-label={ariaLabel}
-        className="scrollbar-subtle flex gap-1 overflow-x-auto border-b border-border"
+        className="ops-tabs scrollbar-subtle flex gap-1 overflow-x-auto border-b border-border"
       >
         {items.map((item) => {
           const selected = item.value === current?.value;
@@ -42,8 +44,7 @@ export function Tabs({
               tabIndex={selected ? 0 : -1}
               className={cn(
                 "relative min-h-12 whitespace-nowrap px-4 text-sm font-semibold text-secondary transition-colors duration-standard hover:text-primary-800",
-                selected &&
-                  "text-primary-800 after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary-700",
+                selected && "text-primary-800",
               )}
               onClick={() => setActive(item.value)}
               onKeyDown={(event) => {
@@ -70,6 +71,13 @@ export function Tabs({
                 document.getElementById(`${instanceId}-${next.value}-tab`)?.focus();
               }}
             >
+              {selected && (
+                <motion.span
+                  className="ops-tab-indicator"
+                  layoutId={`tabs-${instanceId}`}
+                  transition={{ duration: reduced ? 0 : 0.24 }}
+                />
+              )}
               {item.label}
               {item.count !== undefined ? (
                 <span className="numeric ml-2 rounded-full bg-neutral-surface px-2 py-0.5 text-[11px] text-neutral">
@@ -85,7 +93,8 @@ export function Tabs({
           id={`${instanceId}-${current.value}-panel`}
           role="tabpanel"
           aria-labelledby={`${instanceId}-${current.value}-tab`}
-          className="pt-5"
+          key={current.value}
+          className="ops-tab-panel pt-5"
         >
           {current.content}
         </div>

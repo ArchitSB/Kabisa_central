@@ -151,7 +151,9 @@ def verification_readiness(
     rejected: list[CustomerDocumentType] = []
     missing: list[CustomerDocumentType] = []
     for doc_type in STANDARD_DOCUMENT_TYPES:
-        statuses = {doc.status for doc in documents if doc.doc_type == doc_type}
+        matching = [doc for doc in documents if doc.doc_type == doc_type]
+        latest = max(matching, key=lambda doc: doc.created_at) if matching else None
+        statuses = {latest.status} if latest else set()
         if CustomerDocumentStatus.APPROVED in statuses:
             approved.append(doc_type)
         elif CustomerDocumentStatus.PENDING in statuses:

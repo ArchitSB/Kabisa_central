@@ -51,13 +51,13 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["Fraunces", "Georgia", "serif"],
+        display: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       borderRadius: {
-        card: "14px",
-        control: "10px",
+        card: "12px",
+        control: "7px",
       },
       boxShadow: {
         card: "var(--shadow-card)",

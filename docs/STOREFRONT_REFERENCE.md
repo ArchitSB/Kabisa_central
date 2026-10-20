@@ -390,9 +390,9 @@ Stored in `settings` with the `storefront.` prefix. This lists installation defa
 
 | Setting | Default (JSON) |
 | --- | --- |
-| `guest_price_visibility` | `"login_to_see"` |
-| `unverified_price_visibility` | `"visible"` |
-| `guest_price_tier` | `"COMMUNITY"` |
+| `guest_price_visibility` (legacy, ignored by approval gate) | `"login_to_see"` |
+| `unverified_price_visibility` (legacy, ignored by approval gate) | `"visible"` |
+| `guest_price_tier` (legacy, unused) | `"COMMUNITY"` |
 | `min_order_value` | `0` |
 | `delivery_fee_mode` | `"flat"` |
 | `delivery_fee_value` | `0` |
@@ -404,7 +404,7 @@ Stored in `settings` with the `storefront.` prefix. This lists installation defa
 | `business_hours` | `""` |
 | `low_stock_display_threshold` | `10` |
 | `enable_registration` | `true` |
-| `require_verification_to_order` | `true` |
+| `require_verification_to_order` (legacy; verification is always required) | `true` |
 | `enable_reviews` | `false` |
 | `enable_wishlist` | `true` |
 | `maintenance_mode` | `false` |

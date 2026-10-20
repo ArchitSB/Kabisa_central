@@ -1,4 +1,15 @@
-import { Heart, Pill, Plus, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import {
+  Heart,
+  Check,
+  Pill,
+  Plus,
+  ShieldCheck,
+  Stethoscope,
+  Package,
+  Leaf,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@kabisa/api-client";
 import { formatMoney } from "@kabisa/core";
@@ -14,6 +25,14 @@ export function ProductImage({
   eager?: boolean;
 }) {
   const src = assetUrl(product.images[0]);
+  const Icon =
+    product.product_type === "MEDICAL_DEVICE"
+      ? Stethoscope
+      : product.product_type === "CONSUMABLE"
+        ? Package
+        : product.product_type === "NUTRACEUTICAL"
+          ? Leaf
+          : Pill;
   return (
     <div className={`product-image type-${product.product_type.toLowerCase()}`}>
       {src ? (
@@ -32,16 +51,29 @@ export function ProductImage({
         className={`product-placeholder ${src ? "with-image" : ""}`}
         aria-label={t("product.noImage")}
       >
-        <Pill size={52} strokeWidth={1} />
-        <span>{product.strength || product.unit}</span>
+        <Icon size={46} strokeWidth={1} />
+        <span>{product.strength || product.pack_size || product.unit}</span>
+        <small>Product image coming soon</small>
       </div>
     </div>
   );
 }
 export function ProductCard({ product }: { product: Product }) {
   const { add, authenticated, config } = useStore();
+  const reduced = useReducedMotion();
+  const [added, setAdded] = useState(false);
+  useEffect(() => {
+    if (!added) return;
+    const timer = setTimeout(() => setAdded(false), 1400);
+    return () => clearTimeout(timer);
+  }, [added]);
   return (
-    <article className="product-card">
+    <motion.article
+      className="product-card"
+      initial={false}
+      whileHover={reduced ? undefined : { y: -3 }}
+      transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
+    >
       <div className="product-visual">
         <Link to={`/product/${product.slug}`} tabIndex={-1} aria-hidden="true">
           <ProductImage product={product} />
@@ -59,6 +91,9 @@ export function ProductCard({ product }: { product: Product }) {
             <span className="sr-only">{t("product.favourite")}</span>
           </AsyncButton>
         )}
+        {product.sku.startsWith("DEMO-") && product.images.length > 0 && (
+          <span className="product-illustration-label">Illustrative image</span>
+        )}
       </div>
       <div className="product-info">
         <p className="product-brand">
@@ -67,6 +102,7 @@ export function ProductCard({ product }: { product: Product }) {
         <Link to={`/product/${product.slug}`}>
           <h3>{product.name}</h3>
         </Link>
+        <span className="product-sku">{product.sku}</span>
         <p className="product-pack">
           {[product.strength, product.pack_size].filter(Boolean).join(" · ") ||
             product.unit}
@@ -96,19 +132,27 @@ export function ProductCard({ product }: { product: Product }) {
             </Link>
           )}
           <AsyncButton
-            className="add-button"
-            action={() => add(product)}
+            className={`add-button ${added ? "just-added" : ""}`}
+            action={async () => {
+              await add(product);
+              setAdded(true);
+            }}
             disabled={product.availability === "OUT_OF_STOCK"}
           >
-            <Plus size={20} />
-            <span className="sr-only">{t("action.add")}</span>
+            {added ? <Check size={20} /> : <Plus size={20} />}
+            <span className="sr-only">
+              {t("action.add")} {product.name}
+            </span>
           </AsyncButton>
         </div>
       </div>
+      <span role="status" className="sr-only">
+        {added ? `${product.name} added to your basket.` : ""}
+      </span>
       <span className="sr-only">
         <ShieldCheck />
         {t("product.verified")}
       </span>
-    </article>
+    </motion.article>
   );
 }

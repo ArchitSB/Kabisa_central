@@ -27,8 +27,8 @@ export function ConfirmDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-[#101619]/45 backdrop-blur-[2px] data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
-        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[71] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-card border border-border bg-surface p-6 shadow-drawer outline-none">
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-[#101f38]/45 backdrop-blur-[2px] data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
+        <DialogPrimitive.Content className="ops-confirm-dialog fixed left-1/2 top-1/2 z-[71] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-card border border-border bg-surface p-6 shadow-drawer outline-none">
           <span className="flex size-10 items-center justify-center rounded-full bg-warning-surface text-warning">
             <AlertTriangle aria-hidden="true" className="size-5" />
           </span>

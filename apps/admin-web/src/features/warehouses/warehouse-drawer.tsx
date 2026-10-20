@@ -156,7 +156,7 @@ export function WarehouseDrawer({
                 control={form.control}
                 name={name}
                 render={({ field }) => (
-                  <label className="flex items-start gap-3 rounded-control border border-border bg-[#FBFCFB] p-4">
+                  <label className="flex items-start gap-3 rounded-control border border-border bg-[#f7f9fc] p-4">
                     <Checkbox
                       checked={field.value}
                       disabled={Boolean(

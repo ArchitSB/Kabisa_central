@@ -191,7 +191,7 @@ export function ProductDetailPage() {
         }
       />
       <section className="surface-card grid gap-6 p-5 lg:grid-cols-[240px_1fr] lg:p-6">
-        <div className="rounded-card border border-border bg-[#FBFCFB] p-4">
+        <div className="rounded-card border border-border bg-[#f7f9fc] p-4">
           {uploadUrl(item.primary_image) ? (
             <img
               src={uploadUrl(item.primary_image) ?? ""}

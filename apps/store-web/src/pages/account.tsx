@@ -1,5 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -69,14 +75,28 @@ export default function Account() {
       </div>
     );
   const business = customer.customer;
+  const approved = business.status === "VERIFIED";
+  if (
+    !approved &&
+    !["verification", "notifications", "security", ""].includes(section)
+  )
+    return <Navigate to="/account/verification" replace />;
   const messages = config?.settings.verification_messages as
     Record<string, string> | undefined;
   return (
     <div className="container account-page">
       <PageIntro
         eyebrow={business.business_name}
-        title={t("account.title")}
-        body={t("account.subtitle")}
+        title={
+          approved
+            ? "Your account, all together."
+            : "Your next step starts here."
+        }
+        body={
+          approved
+            ? "Business details, orders and support. Just where you need them."
+            : "Complete your application. We’ll take care of the review."
+        }
       />
       <div className="account-layout">
         <aside className="account-sidebar">
@@ -98,13 +118,21 @@ export default function Account() {
             </div>
           </div>
           <nav>
-            {tabs.map(({ id, key, icon: Icon }) => (
-              <NavLink end to={`/account${id ? "/" + id : ""}`} key={key}>
-                <Icon size={18} />
-                {t(`account.${key}`)}
-                <ChevronRight size={14} />
-              </NavLink>
-            ))}
+            {tabs
+              .filter(
+                (tab) =>
+                  approved ||
+                  ["", "verification", "notifications", "security"].includes(
+                    tab.id,
+                  ),
+              )
+              .map(({ id, key, icon: Icon }) => (
+                <NavLink end to={`/account${id ? "/" + id : ""}`} key={key}>
+                  <Icon size={18} />
+                  {t(`account.${key}`)}
+                  <ChevronRight size={14} />
+                </NavLink>
+              ))}
             <AsyncButton
               className="account-logout"
               action={async () => {
@@ -148,13 +176,21 @@ export default function Account() {
                 </Link>
               </section>
               <div className="account-shortcuts">
-                {tabs.slice(1, 4).map(({ id, key, icon: Icon }) => (
-                  <Link className="panel" key={id} to={`/account/${id}`}>
-                    <Icon size={24} strokeWidth={1.4} />
-                    <span>{t(`account.${key}`)}</span>
-                    <ArrowRight size={17} />
-                  </Link>
-                ))}
+                {tabs
+                  .filter((tab) =>
+                    approved
+                      ? ["orders", "verification", "addresses"].includes(tab.id)
+                      : ["verification", "notifications", "security"].includes(
+                          tab.id,
+                        ),
+                  )
+                  .map(({ id, key, icon: Icon }) => (
+                    <Link className="panel" key={id} to={`/account/${id}`}>
+                      <Icon size={24} strokeWidth={1.4} />
+                      <span>{t(`account.${key}`)}</span>
+                      <ArrowRight size={17} />
+                    </Link>
+                  ))}
               </div>
               <section className="panel">
                 <h2>{t("account.business")}</h2>
@@ -252,7 +288,29 @@ function Verification() {
     Record<string, string> | undefined;
   return (
     <>
-      <section className="panel">
+      <div className="application-timeline" aria-label="Application progress">
+        {[
+          "Contact verified",
+          "Business registered",
+          "Certificates",
+          "Team approval",
+        ].map((item, i) => (
+          <div
+            key={item}
+            className={
+              i < 2 ||
+              (i === 2 && !customer.missing_documents.length) ||
+              customer.customer.status === "VERIFIED"
+                ? "complete"
+                : ""
+            }
+          >
+            <span>{i + 1}</span>
+            {item}
+          </div>
+        ))}
+      </div>
+      <section className="panel application-status">
         <div className="section-heading">
           <h2>{t("account.verification")}</h2>
           <Badge
@@ -264,15 +322,30 @@ function Verification() {
           </Badge>
         </div>
         <p>{messages?.[customer.customer.status]}</p>
+        {customer.customer.status === "UNDER_REVIEW" && (
+          <p className="muted">
+            Your application is with our team. Your certificates are securely
+            saved and locked for review. We’ll notify your verified contact when
+            a decision is made.
+          </p>
+        )}
+        {customer.customer.status === "VERIFIED" && (
+          <Link className="btn" to="/catalog">
+            Your store is ready <ArrowRight size={17} />
+          </Link>
+        )}
+        <AsyncButton className="text-link" action={refresh}>
+          Check latest status
+        </AsyncButton>
         {customer.customer.rejection_reason && (
           <p className="error-box">{customer.customer.rejection_reason}</p>
         )}
       </section>
       <section className="panel">
-        <h2>{t("account.documents")}</h2>
+        <h2>Your business certificates</h2>
         <p className="muted">{t("account.documentsBody")}</p>
         <div className="document-list">
-          {["TIN", "TMDA", "PHARMACY_COUNCIL", "TBS", "OTHER"].map((type) => {
+          {["TIN", "TMDA", "PHARMACY_COUNCIL", "TBS"].map((type) => {
             const document = customer.documents.find(
               (d) => d.doc_type === type,
             );
@@ -311,43 +384,51 @@ function Verification() {
                       }
                     >
                       <Download size={17} />
-                      <span className="sr-only">{t("action.download")}</span>
+                      <span className="sr-only">Download certificate</span>
                     </AsyncButton>
                   </>
                 )}
-                <label className="upload-label btn secondary">
-                  {uploading === type
-                    ? t("action.loading")
-                    : t("account.upload")}
-                  <input
-                    className="sr-only"
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png"
-                    aria-label={`${t("account.upload")} ${t(`account.doc.${type}`)}`}
-                    disabled={!!uploading}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setUploading(type);
-                      setError("");
-                      try {
-                        const form = new FormData();
-                        form.append("doc_type", type);
-                        form.append("file", file);
-                        await upload("/documents", form);
-                        await refresh();
-                      } catch (e) {
-                        setError(
-                          e instanceof Error
-                            ? e.message
-                            : t("error.unexpected"),
-                        );
-                      } finally {
-                        setUploading("");
-                      }
-                    }}
-                  />
-                </label>
+                {["PENDING", "REJECTED"].includes(customer.customer.status) && (
+                  <label className="upload-label btn secondary">
+                    {uploading === type
+                      ? t("action.loading")
+                      : t("account.upload")}
+                    <input
+                      className="sr-only"
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      aria-label={`${t("account.upload")} ${t(`account.doc.${type}`)}`}
+                      disabled={!!uploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) {
+                          setError("Please choose a file smaller than 10 MB.");
+                          e.target.value = "";
+                          return;
+                        }
+                        setUploading(type);
+                        setError("");
+                        try {
+                          const form = new FormData();
+                          form.append("doc_type", type);
+                          form.append("file", file);
+                          await upload("/documents", form);
+                          await refresh();
+                        } catch (e) {
+                          setError(
+                            e instanceof Error
+                              ? e.message
+                              : t("error.unexpected"),
+                          );
+                        } finally {
+                          setUploading("");
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+                )}
               </div>
             );
           })}
@@ -684,7 +765,7 @@ function Security() {
           </button>
         </form>
       </section>
-      <section className="panel">
+      <section className="panel application-status">
         <div className="section-heading">
           <h2>{t("account.devices")}</h2>
           <AsyncButton

@@ -38,16 +38,14 @@ export function RoleSwitcher() {
           const role = roles.find((item) => item.id === event.target.value);
           setPreviewRole(role?.id === user.role.id ? null : (role ?? null));
         }}
-        className="h-10 appearance-none rounded-full border border-primary-200 bg-primary-50 pl-9 pr-9 text-xs font-semibold text-primary-900 transition-colors duration-standard hover:border-primary-400 focus:outline-none focus:ring-4 focus:ring-primary-500/15"
+        className="h-10 appearance-none rounded-control border border-border bg-surface pl-9 pr-9 text-xs font-semibold text-primary-900 transition-colors duration-standard hover:border-primary-400 focus:outline-none focus:ring-4 focus:ring-primary-500/15"
       >
         {!roles.length ? (
-          <option value={user.role.id}>
-            Dev · Viewing as {formatRoleName(user.role.name)}
-          </option>
+          <option value={user.role.id}>Preview · {formatRoleName(user.role.name)}</option>
         ) : null}
         {roles.map((role) => (
           <option key={role.id} value={role.id}>
-            Dev · Viewing as {formatRoleName(role.name)}
+            Preview · {formatRoleName(role.name)}
           </option>
         ))}
       </select>

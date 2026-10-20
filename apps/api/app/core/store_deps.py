@@ -83,10 +83,7 @@ async def customer_business(session, user, *, lock=False):
 
 async def require_verified_customer(session: StoreDB, user: CurrentCustomer):
     customer = await customer_business(session, user, lock=True)
-    config = await store_config(session)
-    if customer.status in {"REJECTED", "SUSPENDED"} or (
-        config["settings"]["require_verification_to_order"] and customer.status != "VERIFIED"
-    ):
+    if customer.status != "VERIFIED":
         raise AppError(
             status_code=403,
             detail="Your business must be verified before ordering.",

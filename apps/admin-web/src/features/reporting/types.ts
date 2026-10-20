@@ -139,7 +139,7 @@ export type DashboardSummary = {
   low_stock_needing_action: number | null;
   expiring_soon: DashboardMetric | null;
   outstanding_receivables: DashboardMetric | null;
-  sales_pulse: Array<{ date: string; gross_sales: number }>;
+  sales_pulse: Array<{ date: string; gross_sales: number | string }>;
   inventory_watchlist: Array<{
     product_id: string;
     product_name: string;

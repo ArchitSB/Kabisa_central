@@ -305,7 +305,7 @@ export function AdjustBatchDrawer({
           noValidate
         >
           <div className="space-y-5 px-6 py-6">
-            <div className="rounded-control border border-border bg-[#FBFCFB] p-4">
+            <div className="rounded-control border border-border bg-[#f7f9fc] p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.06em] text-secondary">
                 Current available
               </p>

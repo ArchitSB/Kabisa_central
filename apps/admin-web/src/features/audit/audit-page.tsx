@@ -328,7 +328,7 @@ export function AuditPage() {
               </dl>
               <div>
                 <h3 className="text-sm font-semibold">Change context</h3>
-                <pre className="scrollbar-subtle mt-2 max-h-[420px] overflow-auto rounded-control border border-border bg-[#FBFCFB] p-4 text-xs leading-5 text-foreground">
+                <pre className="scrollbar-subtle mt-2 max-h-[420px] overflow-auto rounded-control border border-border bg-[#f7f9fc] p-4 text-xs leading-5 text-foreground">
                   {JSON.stringify(selected.changes ?? {}, null, 2)}
                 </pre>
               </div>

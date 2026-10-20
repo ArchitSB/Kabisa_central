@@ -3,7 +3,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import {
   ArrowRight,
-  CheckCircle2,
+  PackageCheck,
+  ClipboardList,
+  Store,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -115,52 +117,54 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen w-full overflow-x-hidden bg-background lg:grid-cols-[minmax(320px,0.82fr)_minmax(520px,1.18fr)]">
-      <section className="relative hidden overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between xl:p-14">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="flex size-11 items-center justify-center rounded-[12px] border border-primary-400/35 bg-primary-500/10 font-display text-xl font-semibold text-primary-400">
-              K
+    <main className="ops-login">
+      <section className="ops-login-story">
+        <div className="ops-login-brand">
+          <img
+            src="/images/kabisa-logo.png"
+            alt="Kabisa — One step for millions"
+            width="176"
+            height="80"
+          />
+          <span>OPERATIONS</span>
+        </div>
+        <div className="ops-login-narrative">
+          <p className="ops-login-eyebrow">BEHIND EVERY BETTER DAY</p>
+          <h1>
+            Good care starts
+            <br />
+            with a team
+            <br />
+            <em>in sync.</em>
+          </h1>
+          <p>
+            One connected place for the people, products and decisions that keep Kabisa
+            moving.
+          </p>
+          <div className="ops-login-flow" aria-hidden="true">
+            <span>
+              <Store size={20} />
+              Customers
             </span>
-            <div>
-              <p className="font-display text-2xl font-semibold text-white">Kabisa</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-muted">
-                ADMIN
-              </p>
-            </div>
-          </div>
-          <div className="mt-20 max-w-lg">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary-400">
-              Pharmacy operations
-            </p>
-            <h1 className="mt-4 font-display text-[42px] font-semibold leading-[1.08] tracking-[-0.03em] text-white xl:text-[48px]">
-              One secure workspace for every Kabisa operation.
-            </h1>
-            <p className="mt-6 max-w-md text-[15px] leading-7 text-sidebar-muted">
-              Manage people, access, catalog, orders, inventory, and reporting from a
-              permission-aware admin console.
-            </p>
+            <i />
+            <span>
+              <ClipboardList size={20} />
+              Orders
+            </span>
+            <i />
+            <span>
+              <PackageCheck size={20} />
+              Delivery
+            </span>
           </div>
         </div>
-
-        <div className="space-y-3 text-sm text-sidebar-foreground">
-          {[
-            "Server-enforced role permissions",
-            "Short-lived access with secure refresh",
-            "Operational access only—no customer accounts",
-          ].map((item) => (
-            <div key={item} className="flex items-center gap-3">
-              <CheckCircle2
-                aria-hidden="true"
-                className="size-4 shrink-0 text-primary-400"
-              />
-              <span>{item}</span>
-            </div>
-          ))}
+        <div className="ops-login-footnote">
+          <span>One step for millions.</span>
+          <span>Dar es Salaam · Tanzania</span>
         </div>
       </section>
 
-      <section className="flex min-h-screen min-w-0 items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
+      <section className="ops-login-form-side">
         <motion.div
           initial={prefersReducedMotion ? false : { y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -170,30 +174,25 @@ export function LoginPage() {
           }}
           className="min-w-0 w-full max-w-[460px]"
         >
-          <div className="mb-9 flex items-center gap-3 lg:hidden">
-            <span className="flex size-10 items-center justify-center rounded-[11px] bg-primary-700 font-display text-lg font-semibold text-white">
-              K
-            </span>
-            <div>
-              <p className="font-display text-xl font-semibold text-foreground">Kabisa</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
-                ADMIN
-              </p>
-            </div>
-          </div>
-
-          <div className="surface-card min-w-0 p-6 sm:p-8">
+          <img
+            className="ops-login-mobile-logo"
+            src="/images/kabisa-logo.png"
+            alt="Kabisa"
+            width="160"
+            height="73"
+          />
+          <div className="ops-login-form">
             <div className="flex size-11 items-center justify-center rounded-[12px] bg-primary-100 text-primary-800">
               <ShieldCheck aria-hidden="true" className="size-5" />
             </div>
             <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.12em] text-primary-700">
-              Secure access
+              WELCOME TO YOUR WORKSPACE
             </p>
             <h2 className="mt-2 font-display text-[32px] font-semibold leading-tight tracking-[-0.025em] text-foreground">
-              Sign in to Kabisa
+              Welcome back.
             </h2>
             <p className="mt-2 text-sm leading-6 text-secondary">
-              Use your assigned administrator credentials to continue.
+              Sign in to manage your Kabisa operations.
             </p>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -229,7 +228,7 @@ export function LoginPage() {
                   >
                     Password
                   </label>
-                  <span className="text-xs text-muted">Admin accounts only</span>
+                  <span className="text-xs text-muted">Staff access</span>
                 </div>
                 <div className="relative">
                   <LockKeyhole
@@ -283,7 +282,7 @@ export function LoginPage() {
                   </>
                 ) : (
                   <>
-                    Sign in securely
+                    Enter workspace
                     <ArrowRight aria-hidden="true" />
                   </>
                 )}

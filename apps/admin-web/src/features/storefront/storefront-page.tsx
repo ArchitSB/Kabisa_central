@@ -824,9 +824,6 @@ function ContentDrawer({
   );
 }
 const help: Record<string, string> = {
-  guest_price_visibility: "Choose whether visitors see prices or need to sign in.",
-  require_verification_to_order:
-    "Keep enabled for licensed-buyer verification before checkout. Suspended and rejected accounts remain blocked.",
   min_order_value: "Minimum basket subtotal before delivery and tax.",
   delivery_fee_mode: "Use a fixed fee, region-specific fees, or free delivery.",
   free_delivery_threshold: "Set to 0 to disable the free-delivery threshold.",
@@ -841,14 +838,10 @@ const groups = [
   {
     title: "Commerce & access",
     keys: [
-      "guest_price_visibility",
-      "unverified_price_visibility",
-      "guest_price_tier",
       "min_order_value",
       "tax_rate",
       "low_stock_display_threshold",
       "enable_registration",
-      "require_verification_to_order",
       "enable_wishlist",
       "enable_reviews",
     ],
@@ -933,6 +926,11 @@ function SettingsEditor() {
     );
   return (
     <div className="space-y-5">
+      <div className="rounded-card border border-border bg-surface p-5 text-sm text-secondary">
+        Catalog, prices and ordering are available only to verified business customers.
+        Review certificates and approve access in the Customers workspace. Public visitors
+        can view company information and apply for an account.
+      </div>
       {groups.map((group) => (
         <section
           className="rounded-card border border-border bg-surface p-6"

@@ -12,7 +12,10 @@ type FilterBarProps = {
 
 export function FilterBar({ children, title = "Filters", className }: FilterBarProps) {
   return (
-    <section className={cn("surface-card p-4 sm:p-5", className)} aria-label={title}>
+    <section
+      className={cn("ops-filter-bar surface-card p-4 sm:p-5", className)}
+      aria-label={title}
+    >
       <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
         <span className="flex size-8 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
           <SlidersHorizontal aria-hidden="true" className="size-4" />

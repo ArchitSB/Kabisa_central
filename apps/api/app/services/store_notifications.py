@@ -14,8 +14,8 @@ from app.models import (
     Payment,
     SystemSetting,
 )
-from app.models.store import CustomerNotification
-from app.services.store_content_service import STORE_DEFAULTS
+from app.models.store import CustomerNotification, CustomerUser
+from app.services.store_content_service import STORE_DEFAULTS, public_store_url
 
 
 @event.listens_for(Session, "before_flush")
@@ -47,7 +47,10 @@ def queue_customer_notifications(session, flush_context, instances):
             events.append((None, str(row.to_status), row.customer_id))
     if not events:
         return
-    messages = STORE_DEFAULTS["notification_messages"]
+    messages = {
+        **STORE_DEFAULTS["notification_messages"],
+        "UNDER_REVIEW": "Business application received",
+    }
     raw = (
         session.connection()
         .execute(
@@ -63,6 +66,7 @@ def queue_customer_notifications(session, flush_context, instances):
         except (TypeError, ValueError):
             pass
     for order_id, kind, customer_id in events:
+        title = messages.get(kind)
         if order_id:
             record = (
                 session.connection()
@@ -75,13 +79,41 @@ def queue_customer_notifications(session, flush_context, instances):
             body = record.order_number
         else:
             body = ""
-        if kind not in messages:
+            if kind == "PENDING":
+                title = "Business account created"
+                body = (
+                    "Complete your application by uploading your business certificates at "
+                    + public_store_url()
+                    + "/account/verification"
+                )
+            elif kind == "VERIFIED":
+                body = (
+                    "Your Kabisa business account is approved. Sign in at "
+                    + public_store_url()
+                    + "/login with your verified email or phone and the password you chose. "
+                    "You can also sign in with a one-time code or reset your password at "
+                    + public_store_url()
+                    + "/forgot-password."
+                )
+            elif kind == "REJECTED":
+                body = (
+                    "Please sign in to review the feedback and update your documents: "
+                    + public_store_url()
+                    + "/account/verification"
+                )
+            elif kind == "UNDER_REVIEW":
+                body = (
+                    "Your certificates have been submitted. Track your application at "
+                    + public_store_url()
+                    + "/account/verification"
+                )
+        if not title:
             continue
         session.add(
             CustomerNotification(
                 customer_id=customer_id,
                 type=kind,
-                title=messages[kind],
+                title=title,
                 body=body,
                 payload={"order_id": str(order_id)} if order_id else {},
             )
@@ -109,12 +141,35 @@ async def deliver_pending(session, limit=50):
         customer = await session.get(Customer, row.customer_id)
         if not customer:
             continue
+        users = (
+            await session.scalars(
+                select(CustomerUser)
+                .where(
+                    CustomerUser.customer_id == row.customer_id,
+                    CustomerUser.is_active.is_(True),
+                    CustomerUser.deleted_at.is_(None),
+                )
+                .order_by(CustomerUser.created_at)
+            )
+        ).all()
+        contact = next(
+            (
+                (u.email, "EMAIL") if u.email and u.email_verified_at else (u.phone, "SMS")
+                for u in users
+                if (u.email and u.email_verified_at) or u.phone_verified_at
+            ),
+            None,
+        )
+        # Store notifications go only to a contact proven by OTP, never an unverified profile field.
+        if contact is None:
+            row.delivery_attempts += 1
+            continue
         row.delivery_attempts += 1
         try:
             await notification_provider().send(
-                recipient=customer.email or customer.phone,
-                channel="EMAIL" if customer.email else "SMS",
-                message=row.title,
+                recipient=contact[0],
+                channel=contact[1],
+                message="\n\n".join(part for part in (row.title, row.body) if part),
                 reference=str(row.id),
             )
             row.delivered_at = datetime.now(UTC)

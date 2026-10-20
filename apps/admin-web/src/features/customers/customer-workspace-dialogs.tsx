@@ -64,7 +64,7 @@ export function TextPromptDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-[#101619]/45 backdrop-blur-[2px] data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[70] bg-[#101f38]/45 backdrop-blur-[2px] data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
         <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[71] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-card border border-border bg-surface p-6 shadow-drawer outline-none">
           <DialogPrimitive.Title className="font-display text-2xl font-semibold">
             {title}
@@ -224,7 +224,7 @@ export function AddressDrawer({
               control={form.control}
               name="is_default"
               render={({ field }) => (
-                <label className="flex items-start gap-3 rounded-control border border-border bg-[#FBFCFB] p-4">
+                <label className="flex items-start gap-3 rounded-control border border-border bg-[#f7f9fc] p-4">
                   <Checkbox
                     checked={field.value}
                     onCheckedChange={(value) => field.onChange(Boolean(value))}

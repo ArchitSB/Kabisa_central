@@ -136,10 +136,39 @@ def headers(data, index=0):
     return {"Authorization": "Bearer " + data[f"tokens{index}"]["access_token"]}
 
 
+async def test_legacy_demo_email_repair_preserves_customer_edits(store_data, test_session_factory):
+    from app.schemas.customer import CustomerRead
+    from app.seed.storefront import repair_demo_contacts
+    from pydantic import ValidationError
+
+    async with test_session_factory() as session:
+        legacy = await session.get(CustomerUser, store_data["user0"])
+        edited = await session.get(CustomerUser, store_data["user1"])
+        business = await session.get(Customer, legacy.customer_id)
+        edited_business = await session.get(Customer, edited.customer_id)
+        legacy.phone = "+255700900001"
+        legacy.email = business.email = "verified@demo.kabisa.test"
+        edited.phone = "+255700900002"
+        edited.email = edited_business.email = "custom.buyer@example.com"
+        original_password = legacy.password_hash
+        await session.flush()
+        await session.refresh(business)
+        with pytest.raises(ValidationError, match="email"):
+            CustomerRead.model_validate(business)
+        await repair_demo_contacts(session)
+        await session.flush()
+        await session.refresh(business)
+        assert CustomerRead.model_validate(business).email == "kabisa.verified@example.com"
+        assert legacy.email == business.email
+        assert legacy.password_hash == original_password
+        assert edited.email == edited_business.email == "custom.buyer@example.com"
+        await repair_demo_contacts(session)
+        assert legacy.password_hash == original_password
+
+
 async def test_store_catalog_price_scope_and_no_internal_data(api_client, store_data):
     guest = await api_client.get("/api/v1/store/catalog/products")
-    assert guest.status_code == 200
-    assert guest.json()["items"][0]["price"] is None
+    assert guest.status_code == 401
     response = await api_client.get("/api/v1/store/catalog/products", headers=headers(store_data))
     assert response.status_code == 200
     product = response.json()["items"][0]
@@ -156,7 +185,9 @@ async def test_store_catalog_price_scope_and_no_internal_data(api_client, store_
     ]:
         assert key not in str(product)
     assert "8.00" not in str(product)
-    search = await api_client.get("/api/v1/store/catalog/products?search=Paracetmol")
+    search = await api_client.get(
+        "/api/v1/store/catalog/products?search=Paracetmol", headers=headers(store_data)
+    )
     assert search.status_code == 200 and search.json()["total"] == 1
 
 
@@ -197,7 +228,7 @@ async def test_cart_live_math_rejects_client_prices(api_client, store_data, test
     result = await api_client.get(url, headers=headers(store_data))
     assert Decimal(result.json()["subtotal"]) == Decimal("33.00")
     other = await api_client.get(url, headers=headers(store_data, 1))
-    assert other.json()["items"] == []
+    assert other.status_code == 403
 
 
 async def put_cart(client, data, index=0):
@@ -242,11 +273,11 @@ async def test_order_verified_server_authoritative_idempotent(
     private = await api_client.get(
         "/api/v1/store/orders/" + data["id"], headers=headers(store_data, 1)
     )
-    assert private.status_code == 404
+    assert private.status_code == 403
     invoice = await api_client.get(
         "/api/v1/store/orders/" + data["id"] + "/invoice", headers=headers(store_data, 1)
     )
-    assert invoice.status_code == 404
+    assert invoice.status_code == 403
     invoice = await api_client.get(
         "/api/v1/store/orders/" + data["id"] + "/invoice", headers=headers(store_data)
     )
@@ -256,7 +287,12 @@ async def test_order_verified_server_authoritative_idempotent(
 async def test_unverified_inactive_and_foreign_address_rejected(
     api_client, store_data, test_session_factory
 ):
-    await put_cart(api_client, store_data, 1)
+    denied_cart = await api_client.post(
+        "/api/v1/store/cart",
+        headers=headers(store_data, 1),
+        json={"product_id": str(store_data["product"]), "quantity": 1},
+    )
+    assert denied_cart.status_code == 403
     response = await api_client.post(
         "/api/v1/store/orders",
         headers={**headers(store_data, 1), "Idempotency-Key": "pending-buyer"},
@@ -343,6 +379,13 @@ async def test_otp_single_use_lockout_and_registration(
     )
     assert profile.json()["customer"]["status"] == "PENDING"
     assert len(profile.json()["missing_documents"]) == 4
+    notifications = await api_client.get(
+        "/api/v1/store/notifications",
+        headers={"Authorization": "Bearer " + registration.json()["access_token"]},
+    )
+    application_notice = next(n for n in notifications.json()["items"] if n["type"] == "PENDING")
+    assert application_notice["title"] == "Business account created"
+    assert "/account/verification" in application_notice["body"]
     replay = await api_client.post("/api/v1/store/auth/register", json=payload)
     assert replay.status_code == 401
 
@@ -413,14 +456,14 @@ async def test_otp_recovery_requires_a_previously_verified_contact(
 async def test_private_uploads_signature_and_ownership(api_client, store_data):
     invalid = await api_client.post(
         "/api/v1/store/documents",
-        headers=headers(store_data),
+        headers=headers(store_data, 1),
         data={"doc_type": "TIN"},
         files={"file": ("x.pdf", b"not a pdf", "application/pdf")},
     )
     assert invalid.status_code == 422
     valid = await api_client.post(
         "/api/v1/store/documents",
-        headers=headers(store_data),
+        headers=headers(store_data, 1),
         data={"doc_type": "TIN"},
         files={"file": ("tin.pdf", b"%PDF-1.4\nTest", "application/pdf")},
     )
@@ -428,7 +471,7 @@ async def test_private_uploads_signature_and_ownership(api_client, store_data):
     assert "file_path" not in valid.text
     doc_id = valid.json()["id"]
     forbidden = await api_client.get(
-        f"/api/v1/store/documents/{doc_id}/download", headers=headers(store_data, 1)
+        f"/api/v1/store/documents/{doc_id}/download", headers=headers(store_data)
     )
     assert forbidden.status_code == 404
     missing = await api_client.get("/uploads/customer-documents/tin.pdf")
@@ -683,3 +726,164 @@ async def test_storefront_permission_edit_validation_and_safe_company(
     assert "Admin editable banner" in home.text
     exported = await api_client.get("/api/v1/storefront/banners/export", headers=admin_headers)
     assert exported.status_code == 200 and exported.content.startswith(b"PK")
+
+
+@pytest.mark.parametrize("state", ["PENDING", "UNDER_REVIEW", "REJECTED", "SUSPENDED"])
+async def test_approval_gate_cannot_be_bypassed_by_visibility_settings(
+    api_client, store_data, test_session_factory, state
+):
+    async with test_session_factory() as session:
+        business = await session.get(Customer, store_data["customer1"])
+        business.status = state
+        session.add_all(
+            [
+                SystemSetting(key="storefront.guest_price_visibility", value='"visible"'),
+                SystemSetting(key="storefront.unverified_price_visibility", value='"visible"'),
+                SystemSetting(key="storefront.require_verification_to_order", value="false"),
+            ]
+        )
+        await session.commit()
+    for path in ["/catalog/products", "/catalog/products/paracetamol", "/cart", "/orders"]:
+        result = await api_client.get("/api/v1/store" + path, headers=headers(store_data, 1))
+        assert result.status_code == 403, path
+    home = await api_client.get("/api/v1/store/home", headers=headers(store_data, 1))
+    assert home.status_code == 200
+    assert home.json()["featured"] == [] and home.json()["collections"] == []
+    assert "10.25" not in home.text
+    guest = await api_client.get("/api/v1/store/home")
+    assert guest.json()["featured"] == []
+    assert (
+        await api_client.get("/api/v1/store/me", headers=headers(store_data, 1))
+    ).status_code == 200
+
+
+async def test_applicant_documents_admin_approval_and_verified_contact_notification(
+    api_client, store_data, test_session_factory, monkeypatch
+):
+    from app.models import CustomerDocument, CustomerDocumentStatus
+    from app.models.store import CustomerNotification
+    from app.schemas.customer import CustomerDocumentReview
+    from app.services import customer_service, verification_service
+    from app.services.store_notifications import deliver_pending
+
+    h = headers(store_data, 1)
+    missing = await api_client.post("/api/v1/store/verification/submit", headers=h)
+    assert missing.status_code == 422
+    docs = []
+    for kind in ["TIN", "TMDA", "PHARMACY_COUNCIL", "TBS"]:
+        result = await api_client.post(
+            "/api/v1/store/documents",
+            headers=h,
+            data={"doc_type": kind},
+            files={"file": (kind + ".pdf", b"%PDF-1.4\nDemo", "application/pdf")},
+        )
+        assert result.status_code == 201
+        docs.append(UUID(result.json()["id"]))
+    submitted = await api_client.post("/api/v1/store/verification/submit", headers=h)
+    assert submitted.json()["customer"]["status"] == "UNDER_REVIEW"
+    duplicate = await api_client.post("/api/v1/store/verification/submit", headers=h)
+    assert duplicate.status_code == 409
+    locked = await api_client.post(
+        "/api/v1/store/documents",
+        headers=h,
+        data={"doc_type": "TIN"},
+        files={"file": ("replacement.pdf", b"%PDF-1.4\nDemo", "application/pdf")},
+    )
+    assert locked.status_code == 409
+    async with test_session_factory() as session:
+        admin = await session.get(AdminUser, store_data["admin"])
+        detail = await customer_service.customer_detail(session, store_data["customer1"])
+        assert len(detail.documents) == 4
+        for doc in docs:
+            await verification_service.review_document(
+                session, doc, CustomerDocumentReview(status=CustomerDocumentStatus.APPROVED), admin
+            )
+        result = await verification_service.verify_customer(
+            session, store_data["customer1"], admin, justification_note=None
+        )
+        assert result.status == "VERIFIED"
+        queued = (
+            await session.scalars(
+                select(CustomerNotification).where(
+                    CustomerNotification.customer_id == store_data["customer1"],
+                    CustomerNotification.type == "VERIFIED",
+                )
+            )
+        ).all()
+        assert len(queued) == 1
+        assert "/login" in queued[0].body and "/forgot-password" in queued[0].body
+        assert "testpassword123" not in queued[0].body
+        assert (await session.get(CustomerDocument, docs[0])).status == "APPROVED"
+    catalog = await api_client.get("/api/v1/store/catalog/products", headers=h)
+    assert catalog.status_code == 200 and catalog.json()["items"][0]["price"] == "10.25"
+    delivered = []
+
+    async def capture(self, **kwargs):
+        delivered.append(kwargs)
+
+    monkeypatch.setattr(ConsoleNotificationProvider, "send", capture)
+    monkeypatch.setattr(settings, "notification_provider", "console")
+    async with test_session_factory() as session:
+        await deliver_pending(session)
+    assert delivered
+    assert all(
+        item["recipient"] == "+255700000001" and item["channel"] == "SMS" for item in delivered
+    )
+    assert any("/login" in item["message"] for item in delivered)
+    # Suspension takes effect without waiting for this customer's access token to expire.
+    async with test_session_factory() as session:
+        admin = await session.get(AdminUser, store_data["admin"])
+        await verification_service.suspend_customer(
+            session, store_data["customer1"], admin, reason="Test suspension"
+        )
+    assert (await api_client.get("/api/v1/store/catalog/products", headers=h)).status_code == 403
+
+
+async def test_rejected_certificate_replacement_uses_latest_copy(
+    api_client, store_data, test_session_factory
+):
+    from app.models import CustomerDocument
+    from app.services.customer_service import verification_readiness
+
+    now = datetime.now(UTC)
+    async with test_session_factory() as session:
+        business = await session.get(Customer, store_data["customer1"])
+        business.status = "REJECTED"
+        business.rejection_reason = "Please provide a readable certificate."
+        session.add_all(
+            [
+                CustomerDocument(
+                    customer_id=business.id,
+                    doc_type="TIN",
+                    file_path="old.pdf",
+                    original_filename="old.pdf",
+                    status="APPROVED",
+                    created_at=now - timedelta(days=1),
+                ),
+                CustomerDocument(
+                    customer_id=business.id,
+                    doc_type="TIN",
+                    file_path="latest.pdf",
+                    original_filename="latest.pdf",
+                    status="REJECTED",
+                    created_at=now,
+                ),
+            ]
+        )
+        await session.commit()
+        rows = (await session.scalars(select(CustomerDocument))).all()
+        assert "TIN" in verification_readiness(rows).rejected
+    profile = await api_client.get("/api/v1/store/me", headers=headers(store_data, 1))
+    assert "TIN" in profile.json()["missing_documents"]
+    upload_result = await api_client.post(
+        "/api/v1/store/documents",
+        headers=headers(store_data, 1),
+        data={"doc_type": "TIN"},
+        files={"file": ("corrected.pdf", b"%PDF-1.4\nDemo", "application/pdf")},
+    )
+    assert upload_result.status_code == 201
+    async with test_session_factory() as session:
+        rows = (await session.scalars(select(CustomerDocument))).all()
+        readiness = verification_readiness(rows)
+        assert "TIN" in readiness.pending and "TIN" not in readiness.approved
+        assert not readiness.ready

@@ -5,8 +5,8 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
-import { ArrowRight, Check, HeartPulse, ShieldCheck } from "lucide-react";
-import type { Tokens } from "@kabisa/api-client";
+import { ArrowRight, Check, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import type { Customer, Tokens } from "@kabisa/api-client";
 import { normalizePhone } from "@kabisa/core";
 import { api } from "../lib/api";
 import { useStore } from "../lib/store";
@@ -27,6 +27,7 @@ export default function Auth() {
   const [code, setCode] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [delivery, setDelivery] = useState("");
@@ -49,12 +50,13 @@ export default function Auth() {
   const returnTo = params.get("returnTo");
   async function done(tokens: Tokens) {
     await login(tokens);
+    const profile = await api.get<Customer>("/me");
     navigate(
-      isRegister
+      isRegister || profile.customer.status !== "VERIFIED"
         ? "/account/verification"
         : returnTo?.startsWith("/") && !returnTo.startsWith("//")
           ? returnTo
-          : "/account",
+          : "/",
       { replace: true },
     );
   }
@@ -134,19 +136,25 @@ export default function Auth() {
   return (
     <div className="container auth-page" key={location.pathname}>
       <aside className="auth-story">
-        <span className="auth-story-icon">
-          <HeartPulse size={42} strokeWidth={1.3} />
-        </span>
-        <p className="eyebrow">{String(config?.settings.home_eyebrow || "")}</p>
-        <h2>{String(config?.settings.home_trust_title || "")}</h2>
-        <p>{String(config?.settings.home_trust_body || "")}</p>
-        <div className="auth-story-art">
-          <span />
-          <span />
-          <span />
-          <ShieldCheck size={58} strokeWidth={1} />
+        <img
+          src="/images/pharmacy-partner.webp"
+          alt="Illustrative Tanzanian pharmacist portrait"
+        />
+        <div className="auth-story-copy">
+          <p className="eyebrow">ONE STEP FOR MILLIONS</p>
+          <h2>
+            A better day
+            <br />
+            begins together.
+          </h2>
+          <p>
+            Your business. Your supplies.
+            <br />A partner who understands both.
+          </p>
+          <span>
+            <ShieldCheck size={18} /> A verified healthcare business community
+          </span>
         </div>
-        <div className="auth-story-footer">{config?.company.company_name}</div>
       </aside>
       <section className="auth-form-section">
         <p className="eyebrow">
@@ -164,6 +172,12 @@ export default function Auth() {
               ? t("auth.resetBody")
               : t("auth.loginBody")}
         </p>
+        {isRegister && (
+          <p className="application-note">
+            Complete your business details and upload your certificates. Our
+            team will approve your account before you can browse or order.
+          </p>
+        )}
         {isRegister && (
           <div className="onboarding-progress">
             {["auth.contactStep", "auth.detailsStep", "auth.documentsStep"].map(
@@ -198,7 +212,7 @@ export default function Auth() {
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
                   maxLength={320}
-                  placeholder="+255…"
+                  placeholder="you@business.co.tz or +255…"
                 />
               </Field>
             )}
@@ -266,16 +280,7 @@ export default function Auth() {
                       setDetails({ ...details, business_type: e.target.value })
                     }
                   >
-                    {[
-                      "COMMUNITY_PHARMACY",
-                      "DLDM",
-                      "WHOLESALE",
-                      "HOSPITAL",
-                      "CLINIC",
-                      "GOVERNMENT",
-                      "NGO",
-                      "FBO",
-                    ].map((type) => (
+                    {["COMMUNITY_PHARMACY", "DLDM", "WHOLESALE"].map((type) => (
                       <option value={type} key={type}>
                         {t(`business.${type}`)}
                       </option>
@@ -339,17 +344,30 @@ export default function Auth() {
                   isRegister || isReset ? t("auth.passwordHint") : undefined
                 }
               >
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  maxLength={72}
-                  autoComplete={
-                    isRegister || isReset ? "new-password" : "current-password"
-                  }
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="password-field">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    maxLength={72}
+                    autoComplete={
+                      isRegister || isReset
+                        ? "new-password"
+                        : "current-password"
+                    }
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </Field>
             )}
             {!otpFlow && (

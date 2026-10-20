@@ -1,3 +1,4 @@
+import { motion, useReducedMotion } from "motion/react";
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -222,8 +223,11 @@ export function AsyncButton({
   disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const reduced = useReducedMotion();
   return (
-    <button
+    <motion.button
+      whileTap={reduced || disabled || busy ? undefined : { scale: 0.96 }}
+      transition={{ duration: 0.14 }}
       className={className}
       disabled={disabled || busy}
       aria-busy={busy}
@@ -242,7 +246,7 @@ export function AsyncButton({
     >
       {busy ? <span className="loading-dot" /> : null}
       {children}
-    </button>
+    </motion.button>
   );
 }
 export function OfflineNotice() {

@@ -13,7 +13,7 @@ const DrawerContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#101619]/45 backdrop-blur-[2px] data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
+    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#101f38]/45 backdrop-blur-[2px] data-[state=closed]:animate-overlay-out data-[state=open]:animate-overlay-in" />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
@@ -71,7 +71,7 @@ function DrawerFooter({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   return (
     <div
       className={cn(
-        "mt-auto flex flex-col-reverse gap-2 border-t border-border bg-[#FBFCFB] px-6 py-5 sm:flex-row sm:justify-end",
+        "mt-auto flex flex-col-reverse gap-2 border-t border-border bg-[#f7f9fc] px-6 py-5 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}

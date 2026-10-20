@@ -1,10 +1,10 @@
-# Kabisa — Admin, Storefront and Mobile
+# Kabisa — Admin and Storefront
 
-Kabisa's healthcare procurement platform: a FastAPI/PostgreSQL operations backend, a React admin workspace, a responsive customer storefront/PWA, and an Expo native mobile app. Customer orders use the existing verification, tier pricing, FEFO inventory, delivery and payment workflows.
+Kabisa's healthcare procurement platform: a FastAPI/PostgreSQL operations backend, a React admin workspace, a responsive customer storefront/PWA, and an existing Expo native app (development currently deferred). Customer orders use the existing verification, tier pricing, FEFO inventory, delivery and payment workflows.
 
-The storefront includes a designed editorial homepage, live catalog/search, Quick Order, guest basket merge, verified checkout, private document uploads, order tracking, invoices, recurring baskets and account management. Admin's new **Storefront** section manages merchandising, policies, navigation and runtime settings.
+The storefront has a red/navy brand identity, public business application, and an approval-only shopping workspace with live catalog/search, Quick Order, verified checkout, private document uploads, order tracking, invoices, recurring baskets and account management. Admin's new **Storefront** section manages merchandising, policies, navigation and runtime settings.
 
-Start with the [build report](docs/STOREFRONT_BUILD_REPORT.md), [storefront guide](docs/STOREFRONT.md), [complete API/table/settings reference](docs/STOREFRONT_REFERENCE.md), and [native app instructions](docs/MOBILE_READINESS.md).
+Start with the [admin redesign and motion report](docs/ADMIN_REDESIGN.md), the current [web redesign and verification report](docs/STOREFRONT_REDESIGN.md), the earlier [build report](docs/STOREFRONT_BUILD_REPORT.md), [storefront guide](docs/STOREFRONT.md), [complete API/table/settings reference](docs/STOREFRONT_REFERENCE.md), and [native app instructions](docs/MOBILE_READINESS.md).
 
 ## Requirements
 
@@ -35,7 +35,7 @@ The storefront seed is additive: it does not reset your original catalog or oper
 uvicorn app.main:app --app-dir apps/api --reload
 pnpm dev:web
 pnpm dev:store
-pnpm dev:mobile
+# Native app work is deferred.
 # Optional asynchronous notifications:
 python -m app.notify --loop
 ```
@@ -49,7 +49,7 @@ python -m app.notify --loop
 | Native app | `pnpm dev:mobile`, then open with Expo |
 | Native browser preview | `pnpm --filter @kabisa/mobile web` |
 
-Admin uses `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from your `.env`. The verified customer demo is `+255700900001`; the pending demo is `+255700900002`. Their local password is in the ignored `.env.store-demo` file. Optional demo creation requires `STORE_DEMO_PASSWORD` in development; seed reruns do not overwrite existing customer passwords. Do not use demo accounts in production.
+Admin uses `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from your `.env`. The new verified test buyer can log in with `kabisa.buyer@example.com` or `+255700900010` and the password saved in the ignored `.env.store-test` file. The verified customer demo is `+255700900001`; the pending demo is `+255700900002`. Their local password is in the ignored `.env.store-demo` file. Optional demo creation requires `STORE_DEMO_PASSWORD` in development; seed reruns do not overwrite existing customer passwords. Do not use demo accounts in production.
 
 For a phone, configure a reachable `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_STORE_URL`; see [Mobile readiness](docs/MOBILE_READINESS.md). Android bundle export is implemented; signed APK/AAB distribution requires your Expo/Play accounts and device testing.
 
@@ -308,5 +308,7 @@ The design source of truth is
 [`design-system/MASTER.md`](design-system/MASTER.md). The machine-readable
 profile is
 [`design-system/kabisa-admin.dna.json`](design-system/kabisa-admin.dna.json).
+
+Current web previews and validation: [redesign report](docs/STOREFRONT_REDESIGN.md). Earlier delivery screenshots below are historical.
 
 Storefront design profile: [`design-system/kabisa-store.dna.json`](design-system/kabisa-store.dna.json). Screenshots: [desktop](docs/screenshots/store-desktop.png), [mobile web](docs/screenshots/store-mobile.png), [native](docs/screenshots/native-home.png), [admin](docs/screenshots/admin-storefront.png).

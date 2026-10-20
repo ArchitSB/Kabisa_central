@@ -1,259 +1,125 @@
 import { useState } from "react";
-import {
-  BadgePercent,
-  Boxes,
-  ChartNoAxesCombined,
-  ChevronRight,
-  ClipboardList,
-  ContactRound,
-  LayoutDashboard,
-  LogOut,
-  MessageSquareText,
-  PackageSearch,
-  Settings,
-  ShieldCheck,
-  Store,
-  Tags,
-  Truck,
-  FileClock,
-  UserRoundCog,
-  Warehouse as WarehouseIcon,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowUpRight, ChevronRight, LogOut, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
-
+import { motion, useReducedMotion } from "motion/react";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { copy } from "@/lib/copy";
+import { navigation } from "@/lib/navigation";
 import { cn, formatRoleName, getInitials } from "@/lib/utils";
 
-type NavItem = {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  permission?: string;
-};
-
-const navigation: Array<{ label: string; items: NavItem[] }> = [
-  {
-    label: "Overview",
-    items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard }],
-  },
-  {
-    label: "Operations",
-    items: [
-      { label: "Orders", href: "/orders", icon: ClipboardList, permission: "orders.view" },
-      {
-        label: "Products",
-        href: "/products",
-        icon: PackageSearch,
-        permission: "products.view",
-      },
-      { label: "Inventory", href: "/inventory", icon: Boxes, permission: "inventory.view" },
-      { label: "Customers", href: "/customers", icon: Store, permission: "customers.view" },
-      {
-        label: "Customer feedback",
-        href: "/customers/feedback",
-        icon: MessageSquareText,
-        permission: "customer_feedback.view",
-      },
-      {
-        label: "Delivery agents",
-        href: "/delivery-agents",
-        icon: Truck,
-        permission: "delivery_agents.view",
-      },
-    ],
-  },
-  {
-    label: "Storefront",
-    items: [{ label: "Storefront", href: "/storefront", icon: Store, permission: "storefront.view" }],
-  },
-  {
-    label: "Management",
-    items: [
-      {
-        label: "Categories",
-        href: "/categories",
-        icon: Tags,
-        permission: "categories.view",
-      },
-      { label: "Brands", href: "/brands", icon: ContactRound, permission: "brands.view" },
-      {
-        label: "Warehouses",
-        href: "/warehouses",
-        icon: WarehouseIcon,
-        permission: "inventory.view",
-      },
-      {
-        label: "Coupons",
-        href: "/coupons",
-        icon: BadgePercent,
-        permission: "coupons.view",
-      },
-      {
-        label: "Reports",
-        href: "/reports",
-        icon: ChartNoAxesCombined,
-        permission: "reports.view",
-      },
-      {
-        label: "Audit log",
-        href: "/audit",
-        icon: FileClock,
-        permission: "audit.view",
-      },
-      {
-        label: "Admin users",
-        href: "/admin-users",
-        icon: UserRoundCog,
-        permission: "admin_users.view",
-      },
-      { label: "Roles", href: "/roles", icon: ShieldCheck, permission: "roles.view" },
-      { label: "Settings", href: "/settings", icon: Settings, permission: "settings.view" },
-    ],
-  },
-];
-
-type SidebarProps = {
+export function Sidebar({
+  mobile = false,
+  onClose,
+}: {
   mobile?: boolean;
   onClose?: () => void;
-};
-
-export function Sidebar({ mobile = false, onClose }: SidebarProps) {
+}) {
   const [loggingOut, setLoggingOut] = useState(false);
-  const user = useAuthStore((state) => state.user);
-  const previewRole = useAuthStore((state) => state.previewRole);
-  const hasPermission = useAuthStore((state) => state.hasPermission);
-  const logout = useAuthStore((state) => state.logout);
-  const visibleNavigation = navigation
-    .map((section) => ({
-      ...section,
-      items: section.items.filter(
-        (item) => !item.permission || hasPermission(item.permission),
-      ),
+  const { user, previewRole, hasPermission, logout } = useAuthStore();
+  const reduced = useReducedMotion();
+  const sections = navigation
+    .map((s) => ({
+      ...s,
+      items: s.items.filter((i) => !i.permission || hasPermission(i.permission)),
     }))
-    .filter((section) => section.items.length > 0);
-  const effectiveRoleName = previewRole?.name ?? user?.role.name ?? "";
-
-  async function handleLogout() {
-    setLoggingOut(true);
-    await logout();
-    onClose?.();
-  }
-
+    .filter((s) => s.items.length);
   return (
     <aside
-      className={cn(
-        "flex h-dvh w-[260px] flex-col overflow-hidden bg-sidebar text-sidebar-foreground",
-        mobile ? "w-[min(86vw,320px)]" : "fixed inset-y-0 left-0 z-30",
-      )}
+      className={cn("ops-sidebar", mobile && "is-mobile")}
       aria-label="Primary navigation"
     >
-      <div className="h-1 w-full bg-sidebar-accent" />
-      <div className="flex h-[82px] shrink-0 items-center justify-between border-b border-white/[0.07] px-6">
-        <NavLink to="/" className="group flex items-center gap-3" onClick={onClose}>
-          <span className="flex size-9 items-center justify-center rounded-[11px] border border-primary-400/35 bg-primary-500/10 font-display text-lg font-semibold text-primary-400 transition-colors duration-standard group-hover:bg-primary-500/20">
-            K
-          </span>
-          <span>
-            <span className="block font-display text-xl font-semibold tracking-[-0.02em] text-white">
-              {copy.brand.name}
-            </span>
-            <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-muted">
-              {copy.brand.product}
-            </span>
-          </span>
+      <div className="ops-brand-row">
+        <NavLink
+          to="/"
+          onClick={onClose}
+          aria-label="Kabisa Operations home"
+          className="ops-logo"
+        >
+          <img
+            src="/images/kabisa-logo.png"
+            alt="Kabisa — One step for millions"
+            width="150"
+            height="68"
+          />
         </NavLink>
-        {mobile ? (
+        {mobile && (
           <button
-            type="button"
+            className="ops-sidebar-close"
             aria-label="Close navigation"
-            className="flex size-10 items-center justify-center rounded-control text-sidebar-muted transition-colors hover:bg-white/[0.08] hover:text-white"
             onClick={onClose}
           >
-            <X aria-hidden="true" className="size-5" />
+            <X size={20} />
           </button>
-        ) : null}
+        )}
       </div>
-
-      <nav className="scrollbar-subtle flex-1 overflow-y-auto px-3 py-5">
-        <p className="px-3 pb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-sidebar-muted">
-          {copy.brand.section}
-        </p>
-        <div className="space-y-5">
-          {visibleNavigation.map((section) => (
-            <div key={section.label}>
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-muted/75">
-                {section.label}
-              </p>
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.href}
-                      to={item.href}
-                      end={item.href === "/" || item.href === "/customers"}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        cn(
-                          "group flex min-h-10 items-center gap-3 rounded-[10px] px-3 text-[13px] font-medium text-sidebar-muted transition-colors duration-standard ease-kabisa hover:bg-white/[0.06] hover:text-sidebar-foreground",
-                          isActive &&
-                            "bg-sidebar-active font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.05)] hover:bg-sidebar-active hover:text-white",
-                        )
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <Icon
-                            aria-hidden={true}
-                            className={cn(
-                              "size-[18px] shrink-0 transition-colors duration-standard",
-                              isActive
-                                ? "text-white"
-                                : "text-sidebar-muted group-hover:text-primary-400",
-                            )}
-                          />
-                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                          {isActive ? (
-                            <ChevronRight
-                              aria-hidden="true"
-                              className="size-3.5 text-white/75"
-                            />
-                          ) : null}
-                        </>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+      <div className="ops-workspace-label">
+        <span className="ops-workspace-mark">K</span>
+        <div>
+          <strong>Operations workspace</strong>
+          <span>Administration & fulfilment</span>
         </div>
+      </div>
+      <nav className="ops-navigation scrollbar-subtle">
+        {sections.map((section) => (
+          <div className="ops-nav-section" key={section.label}>
+            <p>{section.label === "Overview" ? "Your workspace" : section.label}</p>
+            {section.items.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                end={item.href === "/" || item.href === "/customers"}
+                onClick={onClose}
+                className={({ isActive }) => cn("ops-nav-link", isActive && "active")}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.span
+                        className="ops-nav-indicator"
+                        layoutId={mobile ? "mobile-active-nav" : "active-nav"}
+                        transition={{ duration: reduced ? 0 : 0.24, ease: [0.2, 0, 0, 1] }}
+                      />
+                    )}
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                    {isActive && <ChevronRight size={14} />}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        ))}
       </nav>
-
-      <div className="shrink-0 border-t border-white/[0.07] p-3">
-        <div className="flex items-center gap-3 rounded-[12px] bg-white/[0.035] p-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-500/15 text-primary-400">
-            <span className="text-xs font-bold">{getInitials(user?.name ?? "")}</span>
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-sidebar-foreground">
-              {user?.name}
-            </span>
-            <span className="block truncate text-[11px] text-sidebar-muted">
-              {formatRoleName(effectiveRoleName)}
-            </span>
+      <div className="ops-sidebar-bottom">
+        <a
+          className="ops-store-link"
+          href={
+            import.meta.env.DEV
+              ? `${location.protocol}//${location.hostname}:5174`
+              : import.meta.env.VITE_STOREFRONT_URL ||
+                "https://storecenter.kabisapharma.com"
+          }
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Visit the storefront</span>
+          <ArrowUpRight size={16} />
+        </a>
+        <div className="ops-user">
+          <span className="ops-avatar">{getInitials(user?.name ?? "")}</span>
+          <span>
+            <strong>{user?.name}</strong>
+            <small>{formatRoleName(previewRole?.name ?? user?.role.name ?? "")}</small>
           </span>
           <button
-            type="button"
             aria-label="Log out"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-white/[0.07] hover:text-white"
             disabled={loggingOut}
-            onClick={handleLogout}
+            onClick={async () => {
+              setLoggingOut(true);
+              await logout();
+              onClose?.();
+            }}
           >
-            <LogOut aria-hidden="true" className="size-4" />
+            <LogOut size={17} />
           </button>
         </div>
       </div>

@@ -1,12 +1,12 @@
 {
-  "name": "Kabisa Pharmacy",
+  "name": "Kabisa Pharmaceuticals",
   "short_name": "Kabisa",
   "description": "Medicines and medical supplies for healthcare businesses.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F7F5EF",
-  "theme_color": "#366F8A",
+  "background_color": "#ffffff",
+  "theme_color": "#132d58",
   "icons": [
     {
       "src": "/icon-192.png",

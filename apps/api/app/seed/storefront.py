@@ -23,6 +23,24 @@ from app.models.store import (
 )
 from app.services.store_content_service import STORE_DEFAULTS
 
+
+async def repair_demo_contacts(session):
+    """Repair only the exact legacy fixture addresses; preserve edited customer contacts."""
+    for index, state in enumerate([CustomerStatus.VERIFIED, CustomerStatus.PENDING], 1):
+        user = await session.scalar(
+            select(CustomerUser).where(CustomerUser.phone == f"+25570090000{index}")
+        )
+        if not user:
+            continue
+        old_email = f"{state.value.lower()}@demo.kabisa.test"
+        email = f"kabisa.{state.value.lower()}@example.com"
+        if user.email == old_email:
+            user.email = email
+        customer = await session.get(Customer, user.customer_id)
+        if customer and customer.email == old_email:
+            customer.email = email
+
+
 PAGES = {
     "about": (
         "A dependable partner in care",
@@ -233,6 +251,7 @@ async def seed_storefront():
                 )
         # Demo credentials are opt-in, development-only, and never overwrite passwords.
         if settings.is_development and settings.store_demo_password:
+            await repair_demo_contacts(session)
             tier = await session.scalar(select(PriceTier).where(PriceTier.code == "COMMUNITY"))
             if tier:
                 for index, state in enumerate([CustomerStatus.VERIFIED, CustomerStatus.PENDING]):
@@ -247,7 +266,7 @@ async def seed_storefront():
                         price_tier_id=tier.id,
                         contact_person="Demo Buyer",
                         phone=phone,
-                        email=f"{state.value.lower()}@demo.kabisa.test",
+                        email=f"kabisa.{state.value.lower()}@example.com",
                         physical_address="Demo facility, Dar es Salaam",
                         region="Dar es Salaam",
                         status=state,

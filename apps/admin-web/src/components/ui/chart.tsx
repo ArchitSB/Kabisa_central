@@ -21,7 +21,7 @@ export function ChartContainer({
 
 export function ChartTooltip({ content }: { content: ReactElement }) {
   return (
-    <Tooltip cursor={{ stroke: "#C4E2EA", strokeDasharray: "4 4" }} content={content} />
+    <Tooltip cursor={{ stroke: "#a0b6d5", strokeDasharray: "4 4" }} content={content} />
   );
 }
 

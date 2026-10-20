@@ -164,7 +164,7 @@ export function ProductLinkedSections({
             {product.images.map((item) => (
               <div
                 key={item.id}
-                className="relative overflow-hidden rounded-control border border-border bg-[#FBFCFB] p-2"
+                className="relative overflow-hidden rounded-control border border-border bg-[#f7f9fc] p-2"
               >
                 <img
                   src={uploadUrl(item.file_path) ?? ""}

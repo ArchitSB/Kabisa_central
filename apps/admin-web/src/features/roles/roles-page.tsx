@@ -133,7 +133,7 @@ export function RolesPage() {
                       className="size-4 text-secondary transition-transform duration-standard group-open:rotate-180"
                     />
                   </summary>
-                  <div className="space-y-5 border-t border-border bg-[#FBFCFB] p-5">
+                  <div className="space-y-5 border-t border-border bg-[#f7f9fc] p-5">
                     {Object.entries(groups).map(([group, permissions]) => (
                       <section key={group} aria-label={`${group} permissions`}>
                         <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-primary-700">

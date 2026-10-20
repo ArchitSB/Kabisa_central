@@ -1,0 +1,192 @@
+/* Short, functional motion with an immediate reduced-motion path. */
+@keyframes store-enter {
+  from {
+    opacity: 0.35;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes store-photo-enter {
+  from {
+    opacity: 0.65;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes store-drawer-enter {
+  from {
+    opacity: 0.6;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes store-drawer-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes store-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes store-overlay-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes store-check {
+  0% {
+    transform: scale(0.7) rotate(-12deg);
+  }
+  65% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+.partner-hero-copy > .eyebrow {
+  animation: store-enter 0.35s both cubic-bezier(0.2, 0, 0, 1);
+}
+.partner-hero-copy > h1,
+.partner-hero-copy > h2 {
+  animation: store-enter 0.45s 0.04s both cubic-bezier(0.2, 0, 0, 1);
+}
+.partner-hero-copy > .hero-description {
+  animation: store-enter 0.4s 0.09s both cubic-bezier(0.2, 0, 0, 1);
+}
+.partner-hero-copy > .hero-actions {
+  animation: store-enter 0.4s 0.14s both cubic-bezier(0.2, 0, 0, 1);
+}
+.partner-hero-image > img {
+  animation: store-photo-enter 0.65s both cubic-bezier(0.2, 0, 0, 1);
+}
+.partner-hero-image {
+  overflow: hidden;
+}
+.btn,
+.text-link,
+.department-card,
+.workspace-shortcuts > a,
+.quantity button,
+.filter-chip,
+.category-rail a,
+.favourite-button {
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    box-shadow 0.2s,
+    color 0.16s,
+    transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+.btn:not(:disabled):active,
+.quantity button:not(:disabled):active {
+  transform: scale(0.98);
+}
+.btn > svg:last-child,
+.text-link > svg:last-child,
+.department-card svg {
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1);
+}
+@media (hover: hover) {
+  .btn:hover > svg:last-child,
+  .text-link:hover > svg:last-child {
+    transform: translateX(3px);
+  }
+  .department-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px #142c4e0a;
+  }
+  .department-card:hover .department-icon svg {
+    transform: translateY(-2px);
+  }
+  .workspace-shortcuts > a:hover {
+    box-shadow: 0 6px 18px #142c4e08;
+    border-color: #bac9dd;
+  }
+  .product-card:hover {
+    box-shadow: 0 10px 24px #142c4e0c;
+    border-color: #bccbdc;
+  }
+}
+.product-card {
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.add-button.just-added {
+  background: #216b4d !important;
+  border-color: #216b4d !important;
+}
+.add-button.just-added svg {
+  animation: store-check 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+.mobile-drawer[data-state="open"] {
+  animation: store-drawer-enter 0.28s cubic-bezier(0.2, 0, 0, 1);
+}
+.mobile-drawer[data-state="closed"] {
+  animation: store-drawer-exit 0.18s ease-in;
+}
+.drawer-overlay[data-state="open"] {
+  animation: store-overlay-enter 0.2s ease-out;
+}
+.drawer-overlay[data-state="closed"] {
+  animation: store-overlay-exit 0.15s ease-in;
+}
+.catalog-grid .product-card {
+  animation: store-enter 0.3s backwards cubic-bezier(0.2, 0, 0, 1);
+}
+.catalog-grid .product-card:nth-child(3n + 2) {
+  animation-delay: 35ms;
+}
+.catalog-grid .product-card:nth-child(3n + 3) {
+  animation-delay: 70ms;
+}
+.verification-timeline,
+.checkout-steps .panel,
+.account-content,
+.quick-order-results {
+  animation: store-enter 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+.faq-item[open] > div,
+.faq-item[open] > p {
+  animation: store-enter 0.22s cubic-bezier(0.2, 0, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .partner-hero-image > img,
+  .department-card:hover,
+  .btn:hover > svg:last-child,
+  .text-link:hover > svg:last-child {
+    transform: none !important;
+  }
+}

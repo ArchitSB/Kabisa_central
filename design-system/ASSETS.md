@@ -1,13 +1,13 @@
-# Storefront assets
+# Kabisa web assets
 
-The generated editorial source is `apps/store-web/public/images/kabisa-care-hero.png`; web and Expo use the optimized 900px WebP (`kabisa-care-hero.webp`, about 35KB). The Expo copy is `apps/mobile/assets/care-hero.webp`. It illustrates healthcare supplies and never substitutes for actual product photography.
+Both portals use the supplied red/navy logo at `public/images/kabisa-logo.png`, with their own layout and styles. Admin's login illustration is built from CSS and Lucide icons. Product fallback drawings are interface elements, not inventory photographs.
 
-Generation brief: premium photographic still life on warm ivory and pale aqua sculptural plinths; unbranded matte white medicine bottle with teal lid, blank white carton, amber bottle, sealed silver blister and a small leaf. Soft morning sunlight, tactile glass and paper, no people, labels, logos, readable text, watermarks or medical claims. Preserve space for surrounding editorial typography. Generated using the imagegen skill.
+The current storefront uses `apps/store-web/public/images/pharmacy-partner.webp` and the labelled fictional demo product images `demo-dressings.webp`, `demo-thermometer.webp` and `demo-gloves.webp`. Illustrations must not imply actual customers, endorsements or product evidence. Real product images are managed in the admin catalog; homepage imagery is configurable under Storefront → Banners.
 
-Icons use the Kabisa K mark with a teal dot. Product fallback illustrations are native/vector UI elements and are not inventory photos. Product images can be uploaded in the existing admin catalog; homepage images are editable in Storefront → Banners.
+The older `kabisa-care-hero.png` / `.webp` assets are retained for earlier references and the deferred native app. They depict unbranded healthcare supplies and are not the current storefront's design direction.
 
-## Web fonts
+## Fonts
 
-The storefront carries local Inter and Fraunces web subsets covering Latin, Latin-1, punctuation and currency symbols at weights 400–700. This retains every weight used by the design, including 550/560/650. Native retains its bundled Google Fonts. Other scripts fall back to the system font.
+The current web interfaces use locally hosted Inter. Admin's copy is `apps/admin-web/src/assets/fonts/inter-latin.woff2`. Storefront font licences are in `apps/store-web/public/font-licenses.txt`. Existing Fraunces assets may remain for earlier/native references; the current admin does not use them.
 
-Source: the locked `@fontsource-variable/inter` and `@fontsource-variable/fraunces` packages. Font licences ship in `apps/store-web/public/font-licenses.txt`. Rebuild the subsets with `python scripts/subset_store_fonts.py` in an environment containing `fonttools[woff]`; no font tool is needed for ordinary builds.
+The source packages are locked Fontsource variable fonts. The existing `scripts/subset_store_fonts.py` script rebuilds storefront subsets in an environment with `fonttools[woff]`; ordinary builds do not need font tooling.

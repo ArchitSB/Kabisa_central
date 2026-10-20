@@ -55,7 +55,10 @@ async def customer_profile(session: StoreDB, user: CurrentCustomer):
             .order_by(CustomerDocument.created_at.desc())
         )
     ).all()
-    present = {d.doc_type.value for d in documents if d.status != "REJECTED"}
+    latest = {}
+    for document in documents:
+        latest.setdefault(document.doc_type.value, document)
+    present = {kind for kind, document in latest.items() if document.status != "REJECTED"}
     return {
         "id": user.id,
         "full_name": user.full_name,
@@ -214,7 +217,16 @@ async def upload_document(
     file: Annotated[UploadFile, File()],
 ):
     await rate_limit(request, "upload", 20)
-    await customer_business(session, user)
+    customer = await customer_business(session, user, lock=True)
+    if customer.status not in {CustomerStatus.PENDING, CustomerStatus.REJECTED}:
+        raise AppError(
+            status_code=409,
+            detail=(
+                "Documents are locked while under review or after approval. "
+                "Contact support for changes."
+            ),
+            code="documents_locked",
+        )
     path = await private_upload(file, "customer-documents")
     row = CustomerDocument(
         customer_id=user.customer_id,
@@ -277,6 +289,7 @@ async def submit_verification(session: StoreDB, user: CurrentCustomer):
         )
     )
     customer.status = CustomerStatus.UNDER_REVIEW
+    customer.rejection_reason = None
     await record_audit(
         session,
         action="customer.verification_submitted",

@@ -1,4 +1,4 @@
-const CACHE = "kabisa-public-v3";
+const CACHE = "kabisa-public-v4";
 const SHELL = ["/", "/icon.svg", "/manifest.webmanifest", "/bootstrap.js"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

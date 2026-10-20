@@ -241,6 +241,12 @@ export function CustomerDetailPage() {
   }
   const item = customer.data;
   const readiness = item.verification_readiness;
+  const isLatestDocument = (document: CustomerDocument) =>
+    !item.documents.some(
+      (other) =>
+        other.doc_type === document.doc_type &&
+        new Date(other.created_at).getTime() > new Date(document.created_at).getTime(),
+    );
   const activeAction = action ? actionCopy[action] : null;
   const currency = settings.data?.currency ?? "TZS";
 
@@ -353,10 +359,15 @@ export function CustomerDetailPage() {
                         {document.original_filename}
                       </p>
                     </div>
-                    <DocumentStatusBadge status={document.status} />
+                    <div className="space-y-1 text-right">
+                      <DocumentStatusBadge status={document.status} />
+                      <p className="text-xs text-secondary">
+                        {isLatestDocument(document) ? "Current version" : "Earlier version"}
+                      </p>
+                    </div>
                   </div>
                   {document.notes ? (
-                    <p className="mt-4 rounded-control bg-[#FBFCFB] p-3 text-sm leading-5 text-secondary">
+                    <p className="mt-4 rounded-control bg-[#f7f9fc] p-3 text-sm leading-5 text-secondary">
                       {document.notes}
                     </p>
                   ) : null}
@@ -369,7 +380,7 @@ export function CustomerDetailPage() {
                       <Download aria-hidden="true" />
                       View / download
                     </Button>
-                    {canReviewDocuments ? (
+                    {canReviewDocuments && isLatestDocument(document) ? (
                       <>
                         <Button
                           variant="outline"
@@ -690,6 +701,20 @@ export function CustomerDetailPage() {
           </div>
         </div>
       </section>
+      <section className="surface-card flex gap-3 p-5 text-sm">
+        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+        <div>
+          <p className="font-semibold">
+            Storefront access:{" "}
+            {item.status === "VERIFIED" ? "Enabled" : "Awaiting approval"}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {item.status === "VERIFIED"
+              ? "Customers with a linked storefront login can browse and order at the assigned price tier. Approval queues a sign-in notification to their verified contact."
+              : "The customer can manage their application, but cannot browse products or order. Review the latest copy of each certificate, then verify the business to enable access."}
+          </p>
+        </div>
+      </section>
       <section className="surface-card px-4 pb-5 sm:px-6 sm:pb-6">
         <Tabs items={tabs} defaultValue="overview" ariaLabel="Customer workspace" />
       </section>
@@ -816,7 +841,7 @@ function Info({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-[105px] rounded-control border border-border bg-[#FBFCFB] px-4 py-3">
+    <div className="min-w-[105px] rounded-control border border-border bg-[#f7f9fc] px-4 py-3">
       <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">
         {label}
       </p>

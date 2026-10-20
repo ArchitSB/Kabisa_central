@@ -1,3 +1,4 @@
+import { MotionConfig } from "motion/react";
 import { useSyncExternalStore } from "react";
 import { getLocale, subscribeLocale } from "./i18n";
 import React, { Suspense, lazy } from "react";
@@ -14,10 +15,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import "./fonts.css";
 import "./styles.css";
+import "./storefront.css";
+import "./motion.css";
 import { queryClient } from "./lib/api";
 import { StoreProvider, useStore } from "./lib/store";
 import { Layout } from "./components/layout";
-import { ErrorBoundary, Skeleton } from "./components/ui";
+import { ErrorBoundary, ErrorState, Skeleton } from "./components/ui";
 // Home is the critical entry screen; keeping its small component eager avoids a request waterfall.
 import Home from "./pages/home";
 const Catalog = lazy(() => import("./pages/catalog"));
@@ -44,6 +47,32 @@ function Protected() {
     />
   );
 }
+function Approved() {
+  const { authenticated, customer, loading, refresh } = useStore();
+  const location = useLocation();
+  if (!authenticated)
+    return (
+      <Navigate
+        replace
+        to={`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`}
+      />
+    );
+  if (loading)
+    return (
+      <div className="container section">
+        <Skeleton />
+      </div>
+    );
+  if (!customer)
+    return (
+      <div className="container section">
+        <ErrorState retry={() => refresh()} />
+      </div>
+    );
+  if (customer.customer.status !== "VERIFIED")
+    return <Navigate replace to="/account/verification" />;
+  return <Outlet />;
+}
 function AuthRoute() {
   const location = useLocation();
   return <Auth key={location.pathname} />;
@@ -51,52 +80,62 @@ function AuthRoute() {
 function App() {
   const locale = useSyncExternalStore(subscribeLocale, getLocale);
   return (
-    <QueryClientProvider client={queryClient}>
-      <StoreProvider>
-        <BrowserRouter
-          key={locale}
-          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-        >
-          <ErrorBoundary>
-            <Suspense
-              fallback={
-                <div className="container section">
-                  <Skeleton />
-                </div>
-              }
-            >
-              <Routes>
-                <Route element={<Layout />}>
-                  <Route index element={<Home />} />
-                  <Route path="catalog" element={<Catalog />} />
-                  <Route path="product/:slug" element={<Product />} />
-                  <Route path="quick-order" element={<QuickOrder />} />
-                  <Route path="cart" element={<Basket />} />
-                  {["login", "register", "forgot-password"].map((path) => (
-                    <Route key={path} path={path} element={<AuthRoute />} />
-                  ))}
-                  <Route path="pages/:slug" element={<Content />} />
-                  <Route path="faq" element={<Content />} />
-                  <Route path="contact" element={<Content />} />
-                  <Route element={<Protected />}>
-                    <Route path="checkout" element={<Checkout />} />
-                    <Route path="account" element={<Account />} />
-                    <Route path="account/orders/:id" element={<Order />} />
-                    <Route path="account/:section" element={<Account />} />
-                    <Route path="order-confirmed/:id" element={<Order />} />
+    <MotionConfig reducedMotion="user">
+      <QueryClientProvider client={queryClient}>
+        <StoreProvider>
+          <BrowserRouter
+            key={locale}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            <ErrorBoundary>
+              <Suspense
+                fallback={
+                  <div className="container section">
+                    <Skeleton />
+                  </div>
+                }
+              >
+                <Routes>
+                  <Route element={<Layout />}>
+                    <Route index element={<Home />} />
+                    <Route element={<Approved />}>
+                      <Route path="catalog" element={<Catalog />} />
+                      <Route path="product/:slug" element={<Product />} />
+                      <Route path="quick-order" element={<QuickOrder />} />
+                      <Route path="cart" element={<Basket />} />
+                    </Route>
+                    {["login", "register", "forgot-password"].map((path) => (
+                      <Route key={path} path={path} element={<AuthRoute />} />
+                    ))}
+                    <Route path="pages/:slug" element={<Content />} />
+                    <Route path="faq" element={<Content />} />
+                    <Route path="contact" element={<Content />} />
+                    <Route element={<Protected />}>
+                      <Route path="account" element={<Account />} />
+                      <Route path="account/orders/:id" element={<Order />} />
+                      <Route path="account/:section" element={<Account />} />
+                    </Route>
+                    <Route element={<Approved />}>
+                      <Route path="checkout" element={<Checkout />} />
+                      <Route path="order-confirmed/:id" element={<Order />} />
+                    </Route>
+                    <Route path="*" element={<NotFound />} />
                   </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-            </Suspense>
-          </ErrorBoundary>
-        </BrowserRouter>
-        <Toaster position="bottom-right" richColors closeButton />
-      </StoreProvider>
-    </QueryClientProvider>
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
+          </BrowserRouter>
+          <Toaster position="bottom-right" richColors closeButton />
+        </StoreProvider>
+      </QueryClientProvider>
+    </MotionConfig>
   );
 }
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const root =
+  import.meta.hot?.data.root ??
+  ReactDOM.createRoot(document.getElementById("root")!);
+if (import.meta.hot) import.meta.hot.data.root = root;
+root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,

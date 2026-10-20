@@ -1,6 +1,8 @@
 # Kabisa customer storefront and mobile app
 
-This delivery adds a responsive customer store, a native Expo app, and a Storefront admin workspace to the existing FastAPI/React monorepo. The direct request to build the mobile app superseded the attachment's placeholder-only instruction.
+**Current web redesign:** [approval workflow, previews and validation](STOREFRONT_REDESIGN.md). Native app work is now deferred.
+
+The original delivery adds a responsive customer store, a native Expo app, and a Storefront admin workspace to the existing FastAPI/React monorepo. The direct request to build the mobile app superseded the attachment's placeholder-only instruction.
 
 ## Architecture
 
@@ -20,13 +22,13 @@ The core compiles with ES2022 libraries and no DOM or ambient Node types. Both c
 
 ## Customer journeys
 
-Browse categories, brand filters, search and related products; see only permitted tier prices. Quick Order parses up to 100 pasted names/SKUs and quantities, searches in small batches and makes ambiguous matches explicit. Add a local guest basket; it merges into the account basket on login. No client-supplied price is accepted.
+After staff approve the business, browse categories, brand filters, search and related products with the assigned tier prices. The API blocks all catalog and commerce access for visitors and unapproved accounts. Quick Order parses up to 100 pasted names/SKUs and quantities, searches in small batches and makes ambiguous matches explicit. Legacy locally saved baskets merge only after verified login; public browsing no longer creates new guest baskets. No client-supplied price is accepted.
 
 Registration verifies a phone/email OTP, collects business details and password, creates a pending business, then guides the buyer through TIN, TMDA, Pharmacy Council and TBS uploads. The existing admin verification workspace reviews the same records. Password and OTP login, OTP reset through previously verified contacts, password changes, session revocation and logout-all are implemented.
 
 Checkout uses owned addresses, optional coupon, private prescription/purchase authorization, payment method and delivery notes. A server quote includes current prices, discount, tax and delivery. Submission uses a persisted idempotency key. Orders enter the existing pipeline as CUSTOMER/PENDING; approval still allocates inventory through the existing FEFO service. Customers can cancel only before approval. Credit accounts display outstanding balance and limit read-only, using the existing committed-order receivables rules. Status history, payment balance, delivery state and XLSX invoices use customer-safe responses.
 
-Favourites, named recurring baskets, reorder, notifications, profile and address editing work on web and native. SecureStore holds native tokens; browser sessionStorage holds web tokens. No private API responses enter the service-worker cache. Public offline catalog snapshots contain no prices; checkout, cart, orders and documents always require a connection.
+Favourites, named recurring baskets, reorder, notifications, profile and address editing work on web and native. SecureStore holds native tokens; browser sessionStorage holds web tokens. No private API responses enter the service-worker cache. Any legacy offline catalog snapshots contain no prices and remain behind the approved-customer route guard; checkout, cart, orders and documents always require a connection.
 
 ## Administration
 
@@ -34,11 +36,11 @@ Storefront provides banners, manual/rule collections, rich-text policy pages, FA
 
 Permissions: `storefront.view`, `storefront.manage`, `storefront.delete`, `storefront.export`, granted to super_admin and manager. The catalogue now has 60 permissions; operational roles retain their existing access. Existing admin routes and features keep their contracts. Customer tokens cannot authorize admin calls, and admin tokens cannot authorize customer calls.
 
-Home messages, hero art/copy, merchandising, navigation, support details, company identity, tax, minimum order, delivery fees/ETAs, price visibility and verification messages are runtime settings/content. Generic interface labels use the language files. Company footer aliases deliberately publish only company name, TIN, business licence, postal address and office/inquiry contact fields; personal staff phone numbers are excluded.
+Home messages, hero art/copy, merchandising, navigation, support details, company identity, tax, minimum order, delivery fees/ETAs, verification messages are runtime settings/content. Generic interface labels use the language files. Company footer aliases deliberately publish only company name, TIN, business licence, postal address and office/inquiry contact fields; personal staff phone numbers are excluded.
 
 ## Defaults and intentional seams
 
-Guest price visibility: login_to_see. Unverified price visibility: visible. Verification required to order: true. Registration and wishlist: enabled. Reviews: dormant. Delivery: flat 0; minimum, tax and free-delivery threshold: 0 until staff configure their policy. Stock display: limited at 10 or fewer units, with no counts exposed. Maintenance: off. Facility-count claims and testimonials: empty until genuine information is supplied.
+Catalog, prices and ordering always require VERIFIED status. Legacy guest/unverified visibility and optional verification switches remain in storage for compatibility but do not override this rule and are hidden in admin settings. Registration and wishlist: enabled. Reviews: dormant. Delivery: flat 0; minimum, tax and free-delivery threshold: 0 until staff configure their policy. Stock display: limited at 10 or fewer units, with no counts exposed. Maintenance: off. Facility-count claims and testimonials: empty until genuine information is supplied.
 
 The demo has active About and Delivery pages; Terms, Privacy and Returns begin as drafts requiring company-approved text. Publishing policies does not require a redeploy. Do not treat the seed's draft legal text as approved policy.
 

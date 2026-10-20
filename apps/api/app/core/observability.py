@@ -34,10 +34,12 @@ class JsonFormatter(logging.Formatter):
 def configure_logging() -> None:
     logger = logging.getLogger("kabisa")
     logger.setLevel(settings.api_log_level.upper())
-    if not settings.api_log_json:
-        return
     handler = logging.StreamHandler()
-    handler.setFormatter(JsonFormatter())
+    handler.setFormatter(
+        JsonFormatter()
+        if settings.api_log_json
+        else logging.Formatter("%(levelname)s %(name)s: %(message)s")
+    )
     logger.handlers.clear()
     logger.addHandler(handler)
     logger.propagate = False

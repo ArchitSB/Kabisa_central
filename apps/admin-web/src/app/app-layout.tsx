@@ -1,8 +1,10 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Menu, Wifi } from "lucide-react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Menu, ChevronRight, ShieldCheck } from "lucide-react";
+import { Outlet, useLocation, Link } from "react-router-dom";
 
+import { WorkspaceSearch } from "@/components/ui/workspace-search";
+import { navigation } from "@/lib/navigation";
 import { RoleSwitcher } from "@/components/ui/role-switcher";
 import { Sidebar } from "@/components/ui/sidebar";
 import { useAuthStore } from "@/features/auth/auth-store";
@@ -12,6 +14,11 @@ import { getInitials } from "@/lib/utils";
 
 export function AppLayout() {
   const location = useLocation();
+  const section =
+    navigation
+      .flatMap((s) => s.items)
+      .filter((i) => i.href !== "/" && location.pathname.startsWith(i.href))
+      .sort((a, b) => b.href.length - a.href.length)[0]?.label || "Overview";
   const prefersReducedMotion = useReducedMotion();
   const user = useAuthStore((state) => state.user);
   const { mobileNavOpen, setMobileNavOpen } = useUiStore();
@@ -24,12 +31,17 @@ export function AppLayout() {
 
   useEffect(() => {
     if (!mobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const trigger = mobileMenuButtonRef.current;
     const firstControl = mobileNavRef.current?.querySelector<HTMLElement>(
       'button, a[href], [tabindex]:not([tabindex="-1"])',
     );
     firstControl?.focus();
-    return () => trigger?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
   }, [mobileNavOpen]);
 
   function handleMobileNavKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -56,7 +68,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="ops-app min-h-screen bg-background">
       <a
         href="#main-content"
         className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-control bg-primary-800 px-4 py-2 text-sm font-semibold text-white transition-transform focus:translate-y-0"
@@ -103,52 +115,48 @@ export function AppLayout() {
         ) : null}
       </AnimatePresence>
 
-      <div className="min-h-screen lg:pl-[260px]">
-        <header className="sticky top-0 z-20 flex h-[70px] items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur-md sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+      <div className="ops-workspace">
+        <header className="ops-topbar">
+          <div className="ops-breadcrumb">
             <button
               ref={mobileMenuButtonRef}
               type="button"
               aria-label={copy.topbar.menu}
               onClick={() => setMobileNavOpen(true)}
-              className="flex size-10 shrink-0 items-center justify-center rounded-control border border-border bg-surface text-secondary transition-colors duration-standard hover:bg-primary-50 hover:text-primary-800 lg:hidden"
+              className="ops-menu-toggle"
             >
-              <Menu aria-hidden="true" className="size-5" />
+              <Menu size={20} />
             </button>
-            <div className="hidden items-center gap-2 text-xs font-medium text-secondary sm:flex">
-              <span className="flex size-7 items-center justify-center rounded-full bg-success-surface text-success">
-                <Wifi aria-hidden="true" className="size-3.5" />
-              </span>
-              <span>Workspace online</span>
-              <span aria-hidden="true" className="text-border">
-                /
-              </span>
-              <span className="rounded-full bg-neutral-surface px-2.5 py-1 text-[11px] font-semibold text-neutral">
-                {copy.topbar.preview}
-              </span>
-            </div>
-            <div className="sm:hidden">
-              <span className="font-display text-lg font-semibold">Kabisa</span>
-            </div>
+            <Link to="/" className="ops-breadcrumb-root">
+              Workspace
+            </Link>
+            <ChevronRight size={14} />
+            <span>{section}</span>
           </div>
-
-          <div className="flex items-center gap-2.5">
+          <WorkspaceSearch />
+          <div className="ops-topbar-actions">
             <RoleSwitcher />
-            <div
+            <span className="ops-access-label">
+              <ShieldCheck size={15} /> Staff access
+            </span>
+            <span
               aria-label={`${user?.name ?? "User"} profile`}
-              role="img"
-              className="flex size-10 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white shadow-sm"
+              className="ops-topbar-avatar"
             >
               {getInitials(user?.name ?? "")}
-            </div>
+            </span>
           </div>
         </header>
 
-        <main
-          id="main-content"
-          className="mx-auto w-full max-w-[1664px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10 xl:py-9"
-        >
-          <Outlet />
+        <main id="main-content" className="ops-main" tabIndex={-1}>
+          <motion.div
+            key={location.pathname}
+            initial={prefersReducedMotion ? false : { opacity: 0.65, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: [0.2, 0, 0, 1] }}
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
     </div>

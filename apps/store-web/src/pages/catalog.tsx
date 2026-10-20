@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Search,
+  LayoutGrid,
+  List,
   SlidersHorizontal,
   X,
 } from "lucide-react";
@@ -26,6 +28,7 @@ export default function Catalog() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("search") || "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("grid");
   const { authenticated } = useStore();
   useSeo(t("nav.catalog"));
   const queryString = params.toString();
@@ -200,8 +203,25 @@ export default function Catalog() {
       <PageIntro
         eyebrow={t("nav.catalog")}
         title={t("catalog.title")}
-        body={t("catalog.subtitle")}
+        body="Your business pricing. Current availability. Everything for your next order."
       />
+      <div className="category-rail" aria-label="Product categories">
+        <button
+          className={!params.get("category") ? "selected" : ""}
+          onClick={() => filter("category", "")}
+        >
+          All categories
+        </button>
+        {categories.data?.items.map((c) => (
+          <button
+            key={c.id}
+            className={params.get("category") === c.slug ? "selected" : ""}
+            onClick={() => filter("category", c.slug)}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
       <div className="catalog-toolbar">
         <div className="search-field">
           <Search size={19} />
@@ -263,10 +283,44 @@ export default function Catalog() {
               <strong>{query.data?.total ?? "—"}</strong>{" "}
               {t("catalog.products")}
             </p>
+            <div className="view-switch" aria-label="Product layout">
+              <button
+                aria-label="Grid view"
+                aria-pressed={view === "grid"}
+                onClick={() => setView("grid")}
+              >
+                <LayoutGrid size={17} />
+              </button>
+              <button
+                aria-label="List view"
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+              >
+                <List size={18} />
+              </button>
+            </div>
             {query.isFetching && !query.isLoading && (
               <span className="loading-dot" />
             )}
           </div>
+          {Array.from(params.entries()).filter(
+            ([key]) => !["page", "sort"].includes(key),
+          ).length > 0 && (
+            <div className="filter-chips">
+              {Array.from(params.entries())
+                .filter(([key]) => !["page", "sort"].includes(key))
+                .map(([key, value]) => (
+                  <button
+                    key={key}
+                    onClick={() => filter(key, "")}
+                    aria-label={`Remove ${key} filter`}
+                  >
+                    {key.replaceAll("_", " ")}: {value.replaceAll("_", " ")}
+                    <X size={12} />
+                  </button>
+                ))}
+            </div>
+          )}
           {!navigator.onLine && (
             <p className="inline-notice">{t("error.offlineCatalog")}</p>
           )}
@@ -276,7 +330,9 @@ export default function Catalog() {
             <ErrorState error={query.error} retry={() => query.refetch()} />
           ) : query.data?.items.length ? (
             <>
-              <div className="product-grid catalog-grid">
+              <div
+                className={`product-grid catalog-grid ${view === "list" ? "list-view" : ""}`}
+              >
                 {query.data.items.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

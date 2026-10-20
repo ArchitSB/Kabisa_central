@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.core.errors import AppError
 from app.core.store_deps import OptionalCustomer, StoreDB, store_available
-from app.models import Product, ProductType
+from app.models import ProductType
 from app.models.store import StorefrontPage
 from app.schemas.store_read import ProductDetailRead, ProductRead, StorePage
 from app.services import store_catalog_service as catalog
@@ -131,15 +131,10 @@ async def store_faqs(session: StoreDB):
 
 @router.get("/sitemap.xml", response_class=Response)
 async def store_sitemap(session: StoreDB):
-    products = (await session.scalars(select(Product.slug).where(*catalog.sellable()))).all()
     pages = (
         await session.scalars(select(StorefrontPage.slug).where(*published(StorefrontPage)))
     ).all()
-    paths = (
-        ["/", "/catalog", "/contact", "/faq"]
-        + ["/product/" + s for s in products]
-        + ["/pages/" + s for s in pages]
-    )
+    paths = ["/", "/contact", "/faq"] + ["/pages/" + s for s in pages]
     urls = "".join("<url><loc>" + escape(public_store_url() + p) + "</loc></url>" for p in paths)
     return Response(
         (

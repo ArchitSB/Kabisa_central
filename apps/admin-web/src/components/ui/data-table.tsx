@@ -109,14 +109,14 @@ export function DataTable<TData>({
 
   return (
     <div>
-      <div className="surface-card scrollbar-subtle overflow-x-auto">
+      <div className="ops-data-table surface-card scrollbar-subtle overflow-x-auto">
         <table
           className="w-full min-w-[980px] border-collapse text-left"
           aria-label={ariaLabel}
         >
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-border bg-[#FBFCFB]">
+              <tr key={headerGroup.id} className="border-b border-border bg-[#f7f9fc]">
                 {headerGroup.headers.map((header) => {
                   const align = header.column.columnDef.meta?.align;
                   return (
@@ -162,9 +162,10 @@ export function DataTable<TData>({
           </thead>
           <tbody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, index) => (
                 <tr
                   key={row.id}
+                  style={{ animationDelay: `${Math.min(index, 6) * 25}ms` }}
                   data-state={row.getIsSelected() ? "selected" : undefined}
                   className="border-b border-border transition-colors duration-micro last:border-b-0 hover:bg-[var(--row-hover)] data-[state=selected]:bg-primary-50"
                 >

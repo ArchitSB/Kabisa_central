@@ -9,7 +9,6 @@ from app.models import (
     Brand,
     Category,
     Customer,
-    PriceTier,
     Product,
     ProductBatch,
     ProductPrice,
@@ -44,24 +43,26 @@ async def primary_warehouse(session):
     return warehouse
 
 
-async def price_tier(session, user, config):
-    if user:
-        customer = await session.get(Customer, user.customer_id)
-        if not customer or customer.deleted_at:
-            return None
-        if (
-            customer.status != "VERIFIED"
-            and config["settings"]["unverified_price_visibility"] != "visible"
-        ):
-            return None
-        return customer.price_tier_id
-    if config["settings"]["guest_price_visibility"] != "visible":
-        return None
-    return await session.scalar(
-        select(PriceTier.id).where(
-            PriceTier.code == config["settings"]["guest_price_tier"], PriceTier.is_active.is_(True)
+async def approved_business(session, user):
+    if user is None:
+        raise AppError(
+            status_code=401,
+            detail="Sign in to your approved business account.",
+            code="customer_auth_required",
         )
-    )
+    customer = await session.get(Customer, user.customer_id, populate_existing=True)
+    if not customer or customer.deleted_at or customer.status != "VERIFIED":
+        raise AppError(
+            status_code=403,
+            detail="Your business must be approved before accessing the store.",
+            code="customer_not_verified",
+        )
+    return customer
+
+
+async def price_tier(session, user, config):
+    customer = await approved_business(session, user)
+    return customer.price_tier_id
 
 
 def stock_query(warehouse_id):
@@ -84,6 +85,7 @@ def stock_query(warehouse_id):
 
 
 async def serialize_products(session, products, user, config=None):
+    await approved_business(session, user)
     if not products:
         return []
     config = config or await store_config(session)
@@ -281,6 +283,7 @@ async def products(
 
 
 async def product_detail(session, user, slug):
+    await approved_business(session, user)
     product = await session.scalar(
         select(Product)
         .where(*sellable(), Product.slug == slug)
@@ -327,6 +330,11 @@ async def home(session, user):
         result[kind] = [public_content(r) for r in await content_rows(session, kind)]
     if not config["settings"]["announcement_enabled"]:
         result["announcements"] = []
+    business = await session.get(Customer, user.customer_id) if user else None
+    if not business or business.deleted_at or business.status != "VERIFIED":
+        result["collections"] = []
+        result["featured"] = []
+        return result
     for collection in result["collections"]:
         if collection["mode"] == "MANUAL":
             ids = (
