@@ -20,7 +20,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def admin_user_with_permissions_query():
-    return select(AdminUser).options(joinedload(AdminUser.role).selectinload(Role.permissions))
+    return select(AdminUser).options(joinedload(AdminUser.role).joinedload(Role.permissions))
 
 
 async def get_current_user(

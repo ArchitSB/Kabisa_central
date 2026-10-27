@@ -29,6 +29,7 @@ from app.schemas.order import (
     OrderDetailRead,
 )
 from app.services import allocation_service, order_service
+from app.services.read_queries import counted_page
 
 ALLOWED_PROOFS = {
     "application/pdf": PDF,
@@ -92,11 +93,9 @@ async def list_agents(
         filters.append(DeliveryAgent.is_active.is_(is_active))
     if vehicle_type:
         filters.append(DeliveryAgent.vehicle_type == vehicle_type)
-    total = await session.scalar(select(func.count()).select_from(DeliveryAgent).where(*filters))
     statement = select(DeliveryAgent).where(*filters).order_by(DeliveryAgent.name.asc())
-    if page_size is not None:
-        statement = statement.offset((page - 1) * page_size).limit(page_size)
-    agents = (await session.scalars(statement)).all()
+    rows, total = await counted_page(session, statement, page=page, page_size=page_size)
+    agents = [row[0] for row in rows]
     return DeliveryAgentListResponse(
         items=[DeliveryAgentRead.model_validate(agent) for agent in agents],
         total=total or 0,

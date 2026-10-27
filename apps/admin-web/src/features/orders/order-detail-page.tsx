@@ -102,7 +102,7 @@ export function OrderDetailPage() {
       setPaymentAmount("");
       setProvider("");
       setTransactionRef("");
-      toast.success("Payment recorded");
+      toast.success("Payment verified and recorded");
     },
     onError: (error) =>
       toast.error("Payment could not be recorded", {
@@ -131,9 +131,21 @@ export function OrderDetailPage() {
   });
 
   if (order.isPending) return <LoadingState label="Loading order…" />;
-  if (order.isError || !order.data)
-    return <ErrorState title="Order could not be loaded" onRetry={() => order.refetch()} />;
+  if ((order.isError && order.data === undefined) || !order.data)
+    return (
+      <ErrorState
+        error={order.error}
+        title="Order could not be loaded"
+        onRetry={() => order.refetch()}
+      />
+    );
   const data = order.data;
+  const deliveryComplete =
+    data.status === "DELIVERED" && data.delivery?.status === "DELIVERED";
+  const amountValid =
+    Number.isFinite(Number(paymentAmount)) &&
+    Number(paymentAmount) > 0 &&
+    Number(paymentAmount) <= Number(data.balance_due);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -213,7 +225,9 @@ export function OrderDetailPage() {
 
       <section className="overflow-hidden rounded-card border border-border bg-surface shadow-card">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="font-display text-xl font-semibold">Items & FEFO allocations</h2>
+          <h2 className="font-display text-xl font-semibold">
+            1. Items & FEFO allocations
+          </h2>
         </div>
         <div className="scrollbar-subtle overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -268,103 +282,13 @@ export function OrderDetailPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-card border border-border bg-surface p-5 shadow-card">
-          <div className="mb-5 flex items-center gap-2">
-            <CreditCard className="size-5 text-primary-700" aria-hidden="true" />
-            <h2 className="font-display text-xl font-semibold">Payments</h2>
-          </div>
-          {canRecord && data.balance_due > 0 ? (
-            <div className="mb-5 grid gap-3 rounded-card border border-border bg-background p-4 sm:grid-cols-2">
-              <FormField label="Amount" htmlFor="payment-amount">
-                <Input
-                  id="payment-amount"
-                  type="number"
-                  min="0.01"
-                  max={data.balance_due}
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(event) => setPaymentAmount(event.target.value)}
-                />
-              </FormField>
-              <FormField label="Method" htmlFor="payment-method">
-                <select
-                  id="payment-method"
-                  className="control-base w-full"
-                  value={paymentMethod}
-                  onChange={(event) =>
-                    setPaymentMethod(event.target.value as PaymentMethod)
-                  }
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="MOBILE_MONEY">Mobile money</option>
-                  <option value="BANK_TRANSFER">Bank transfer</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </FormField>
-              {paymentMethod === "MOBILE_MONEY" ? (
-                <FormField label="Provider" htmlFor="payment-provider">
-                  <Input
-                    id="payment-provider"
-                    placeholder="M-Pesa, Airtel, Mixx…"
-                    value={provider}
-                    onChange={(event) => setProvider(event.target.value)}
-                  />
-                </FormField>
-              ) : null}
-              <FormField label="Transaction reference" htmlFor="payment-ref">
-                <Input
-                  id="payment-ref"
-                  value={transactionRef}
-                  onChange={(event) => setTransactionRef(event.target.value)}
-                />
-              </FormField>
-              <div className="sm:col-span-2">
-                <Button
-                  disabled={!paymentAmount || payment.isPending}
-                  onClick={() => payment.mutate()}
-                >
-                  {payment.isPending ? "Recording…" : "Record collected payment"}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-          {data.payments.length ? (
-            <div className="space-y-3">
-              {data.payments.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-4 border-b border-border pb-3"
-                >
-                  <div>
-                    <p className="font-semibold">{item.method.replaceAll("_", " ")}</p>
-                    <p className="text-xs text-secondary">
-                      {format(
-                        new Date(item.paid_at ?? item.created_at),
-                        "dd MMM yyyy, HH:mm",
-                      )}{" "}
-                      {item.transaction_ref ? `· ${item.transaction_ref}` : ""}
-                    </p>
-                  </div>
-                  <strong className="numeric">
-                    {formatMoney(item.amount, data.currency)}
-                  </strong>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={CreditCard}
-              title="No payments recorded"
-              description="Collected payments will appear here."
-            />
-          )}
-        </section>
-
+      <div className="space-y-6">
         <section className="rounded-card border border-border bg-surface p-5 shadow-card">
           <div className="mb-5 flex items-center gap-2">
             <Truck className="size-5 text-primary-700" aria-hidden="true" />
-            <h2 className="font-display text-xl font-semibold">Delivery</h2>
+            <h2 className="font-display text-xl font-semibold">
+              2. Delivery assignment & confirmation
+            </h2>
           </div>
           {data.status === "APPROVED" && canAssign ? (
             <div className="space-y-3 rounded-card border border-border bg-background p-4">
@@ -469,6 +393,126 @@ export function OrderDetailPage() {
               description="Delivery becomes available after stock is approved and reserved."
             />
           ) : null}
+        </section>
+
+        <section className="rounded-card border border-border bg-surface p-5 shadow-card">
+          <div className="mb-5 flex items-center gap-2">
+            <CreditCard className="size-5 text-primary-700" aria-hidden="true" />
+            <h2 className="font-display text-xl font-semibold">3. Payment verification</h2>
+          </div>
+          <p className="mb-4 text-sm text-secondary">
+            The final step: finance/accounts or an authorized administrator verifies payment
+            after delivery is confirmed.
+          </p>
+          {!deliveryComplete ? (
+            <div
+              role="status"
+              className="mb-5 rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+            >
+              Waiting for delivery confirmation. Payment verification unlocks when the
+              delivery is marked delivered.
+            </div>
+          ) : !canRecord ? (
+            <div
+              role="status"
+              className="mb-5 rounded-card border border-border bg-background p-4 text-sm text-secondary"
+            >
+              Delivery confirmed. Finance/accounts or an authorized administrator must
+              verify the payment.
+            </div>
+          ) : data.balance_due <= 0 ? (
+            <div
+              role="status"
+              className="mb-5 rounded-card border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+            >
+              Payment verified in full. No outstanding balance.
+            </div>
+          ) : null}
+          {canRecord && deliveryComplete && data.balance_due > 0 ? (
+            <div className="mb-5 grid gap-3 rounded-card border border-border bg-background p-4 sm:grid-cols-2">
+              <FormField label="Amount" htmlFor="payment-amount">
+                <Input
+                  id="payment-amount"
+                  type="number"
+                  min="0.01"
+                  max={data.balance_due}
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(event) => setPaymentAmount(event.target.value)}
+                />
+              </FormField>
+              <FormField label="Method" htmlFor="payment-method">
+                <select
+                  id="payment-method"
+                  className="control-base w-full"
+                  value={paymentMethod}
+                  onChange={(event) =>
+                    setPaymentMethod(event.target.value as PaymentMethod)
+                  }
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="MOBILE_MONEY">Mobile money</option>
+                  <option value="BANK_TRANSFER">Bank transfer</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </FormField>
+              {paymentMethod === "MOBILE_MONEY" ? (
+                <FormField label="Provider" htmlFor="payment-provider">
+                  <Input
+                    id="payment-provider"
+                    placeholder="M-Pesa, Airtel, Mixx…"
+                    value={provider}
+                    onChange={(event) => setProvider(event.target.value)}
+                  />
+                </FormField>
+              ) : null}
+              <FormField label="Transaction reference" htmlFor="payment-ref">
+                <Input
+                  id="payment-ref"
+                  value={transactionRef}
+                  onChange={(event) => setTransactionRef(event.target.value)}
+                />
+              </FormField>
+              <div className="sm:col-span-2">
+                <Button
+                  disabled={!amountValid || payment.isPending}
+                  onClick={() => payment.mutate()}
+                >
+                  {payment.isPending ? "Verifying…" : "Verify & record payment"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {data.payments.length ? (
+            <div className="space-y-3">
+              {data.payments.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 border-b border-border pb-3"
+                >
+                  <div>
+                    <p className="font-semibold">{item.method.replaceAll("_", " ")}</p>
+                    <p className="text-xs text-secondary">
+                      {format(
+                        new Date(item.paid_at ?? item.created_at),
+                        "dd MMM yyyy, HH:mm",
+                      )}{" "}
+                      {item.transaction_ref ? `· ${item.transaction_ref}` : ""}
+                    </p>
+                  </div>
+                  <strong className="numeric">
+                    {formatMoney(item.amount, data.currency)}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={CreditCard}
+              title="No payments recorded"
+              description="Payments verified after delivery will appear here."
+            />
+          )}
         </section>
       </div>
 

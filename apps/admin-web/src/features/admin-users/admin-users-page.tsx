@@ -1,7 +1,8 @@
+import { ErrorState } from "@/components/ui/resource-state";
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertCircle, LoaderCircle, Pencil, Plus, UsersRound } from "lucide-react";
+import { LoaderCircle, Pencil, Plus, UsersRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -163,17 +164,12 @@ export function AdminUsersPage() {
             Loading administrators…
           </span>
         </div>
-      ) : query.isError ? (
-        <div className="surface-card flex min-h-64 flex-col items-center justify-center px-6 text-center">
-          <AlertCircle aria-hidden="true" className="size-7 text-danger" />
-          <p className="mt-3 font-semibold">Administrators could not be loaded</p>
-          <p className="mt-1 text-sm text-secondary">
-            Check the API connection and try again.
-          </p>
-          <Button variant="secondary" className="mt-5" onClick={() => query.refetch()}>
-            Try again
-          </Button>
-        </div>
+      ) : query.isError && query.data === undefined ? (
+        <ErrorState
+          title="Administrators could not be loaded"
+          error={query.error}
+          onRetry={() => query.refetch()}
+        />
       ) : (
         <DataTable
           ariaLabel="Admin users"

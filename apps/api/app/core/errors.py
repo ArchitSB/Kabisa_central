@@ -9,6 +9,20 @@ from starlette.exceptions import HTTPException
 logger = logging.getLogger("kabisa.errors")
 
 
+async def database_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", "")
+    # Never log SQL parameters, credentials or exception strings from the driver.
+    logger.warning("database_unavailable: %s", type(exc).__name__, extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "The database is temporarily unavailable. Please try again shortly.",
+            "code": "database_unavailable",
+        },
+        headers={"X-Request-ID": request_id, "Retry-After": "2"},
+    )
+
+
 class AppError(Exception):
     def __init__(
         self,

@@ -20,6 +20,7 @@ export type OrderFilters = {
   warehouse_id?: string;
   date_from?: string;
   date_to?: string;
+  committed_only?: boolean;
 };
 
 export async function listOrders(filters: OrderFilters = {}) {

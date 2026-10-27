@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Menu, ChevronRight, ShieldCheck } from "lucide-react";
 import { Outlet, useLocation, Link } from "react-router-dom";
@@ -6,13 +6,15 @@ import { Outlet, useLocation, Link } from "react-router-dom";
 import { WorkspaceSearch } from "@/components/ui/workspace-search";
 import { navigation } from "@/lib/navigation";
 import { RoleSwitcher } from "@/components/ui/role-switcher";
+import { ConnectivityIndicator } from "@/components/ui/connectivity-indicator";
+import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { Sidebar } from "@/components/ui/sidebar";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { copy } from "@/lib/copy";
 import { useUiStore } from "@/lib/ui-store";
 import { getInitials } from "@/lib/utils";
 
-export function AppLayout() {
+export function AppLayout({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const section =
     navigation
@@ -135,6 +137,7 @@ export function AppLayout() {
           </div>
           <WorkspaceSearch />
           <div className="ops-topbar-actions">
+            <ConnectivityIndicator />
             <RoleSwitcher />
             <span className="ops-access-label">
               <ShieldCheck size={15} /> Staff access
@@ -149,13 +152,14 @@ export function AppLayout() {
         </header>
 
         <main id="main-content" className="ops-main" tabIndex={-1}>
+          <StaleDataBanner />
           <motion.div
             key={location.pathname}
             initial={prefersReducedMotion ? false : { opacity: 0.65, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: [0.2, 0, 0, 1] }}
           >
-            <Outlet />
+            {children ?? <Outlet />}
           </motion.div>
         </main>
       </div>

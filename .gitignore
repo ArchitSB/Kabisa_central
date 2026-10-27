@@ -27,5 +27,6 @@ apps/admin-web/vite.config.d.ts
 
 .expo/
 .playwright-mcp/
+backups/
 apps/mobile/android/
 apps/mobile/ios/

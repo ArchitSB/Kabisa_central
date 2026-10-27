@@ -42,6 +42,7 @@ type StoreState = {
   config: StoreConfig | undefined;
   cart: Cart;
   loading: boolean;
+  error: unknown;
   add: (product: Product, quantity?: number) => Promise<void>;
   setQuantity: (id: string, quantity: number) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -202,6 +203,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             currency: config.data?.currency || "TZS",
           },
       loading: customer.isLoading || cart.isLoading,
+      error: customer.error ?? cart.error,
       add,
       setQuantity,
       remove,
@@ -211,6 +213,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }),
     [
       customer.data,
+      customer.error,
+      cart.error,
       customer.isLoading,
       authenticated,
       config.data,

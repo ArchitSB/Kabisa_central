@@ -7,7 +7,7 @@ from fastapi import status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.errors import AppError
 from app.models import (
@@ -16,6 +16,7 @@ from app.models import (
     MovementType,
     Product,
     ProductBatch,
+    ProductImage,
     ReferenceType,
     StockMovement,
     SystemSetting,
@@ -36,6 +37,7 @@ from app.schemas.inventory import (
     StockMovementRead,
 )
 from app.services.common import sort_expression
+from app.services.read_queries import counted_page, product_on_hand, stock_filter
 
 DEFAULT_RUNTIME_SETTINGS = {
     "currency": "TZS",
@@ -204,6 +206,7 @@ async def list_batches(
     warehouse_id: UUID | None,
     batch_status: BatchStatus | None,
     expiring_before: date | None,
+    expiring_only: bool = False,
 ) -> BatchListResponse:
     filters = [ProductBatch.deleted_at.is_(None)]
     if product_id:
@@ -230,6 +233,21 @@ async def list_batches(
             filters.append(ProductBatch.status == batch_status)
     if expiring_before:
         filters.append(ProductBatch.expiry_date <= expiring_before)
+    if expiring_only:
+        today = date.today()
+        if expiring_before is None:
+            settings = await runtime_settings(session)
+            filters.append(
+                ProductBatch.expiry_date
+                <= today + timedelta(days=int(settings["expiring_soon_days"]))
+            )
+        filters.extend(
+            [
+                ProductBatch.status == BatchStatus.ACTIVE,
+                ProductBatch.expiry_date >= today,
+                ProductBatch.quantity_available > ProductBatch.quantity_reserved,
+            ]
+        )
     if search:
         pattern = f"%{search.strip()}%"
         filters.append(
@@ -516,27 +534,37 @@ async def list_inventory(
                 Product.generic_name.ilike(pattern),
             )
         )
-    products = (
-        (
-            await session.scalars(
-                select(Product)
-                .where(*filters)
-                .options(
-                    selectinload(Product.batches),
-                    selectinload(Product.images),
-                )
-                .order_by(Product.name.asc())
+    settings = await runtime_settings(session)
+    if stock:
+        filters.append(
+            stock_filter(
+                product_on_hand(date.today(), warehouse_id),
+                func.coalesce(Product.low_stock_threshold, int(settings["low_stock_default"])),
+                stock,
             )
         )
-        .unique()
-        .all()
+    primary_image = (
+        select(ProductImage.file_path)
+        .where(ProductImage.product_id == Product.id, ProductImage.is_primary.is_(True))
+        .order_by(ProductImage.sort_order)
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
     )
-    settings = await runtime_settings(session)
+    rows, total = await counted_page(
+        session,
+        select(Product, primary_image)
+        .where(*filters)
+        .options(joinedload(Product.batches).raiseload(ProductBatch.product))
+        .order_by(Product.name.asc(), Product.id.asc()),
+        page=page,
+        page_size=page_size,
+    )
     today = date.today()
     expiring_days = int(settings["expiring_soon_days"])
     default_threshold = int(settings["low_stock_default"])
     serialized: list[InventoryProductRead] = []
-    for product in products:
+    for product, primary in rows:
         batches = [
             batch
             for batch in sorted(product.batches, key=lambda item: item.expiry_date)
@@ -555,7 +583,6 @@ async def list_inventory(
         warehouse_labels = {
             batch.warehouse_id: (batch.warehouse.name, batch.warehouse.code) for batch in batches
         }
-        primary = next((image.file_path for image in product.images if image.is_primary), None)
         serialized.append(
             InventoryProductRead(
                 product_id=product.id,
@@ -600,10 +627,8 @@ async def list_inventory(
                 ],
             )
         )
-    total = len(serialized)
-    start = (page - 1) * page_size if page_size is not None else 0
     return InventoryListResponse(
-        items=(serialized[start : start + page_size] if page_size is not None else serialized),
+        items=serialized,
         total=total,
         page=page,
         page_size=page_size if page_size is not None else total,

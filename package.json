@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @kabisa/admin-web dev",
     "dev:web": "pnpm --filter @kabisa/admin-web dev",
+    "dev:tunnel": "bash scripts/dev-tunnel.sh",
+    "dev:api": "bash scripts/dev-api.sh",
+    "dev:all": "bash scripts/dev-up.sh",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format",
@@ -13,6 +16,7 @@
     "dev:store": "pnpm --filter @kabisa/store-web dev",
     "dev:mobile": "pnpm --filter @kabisa/mobile dev",
     "test": "pnpm -r --if-present test",
+    "test:resilience": "node scripts/check-admin-api.cjs",
     "generate:api": "python3 scripts/export_openapi.py && pnpm --filter @kabisa/shared generate"
   }
 }

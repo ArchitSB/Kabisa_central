@@ -253,8 +253,9 @@ export function CategoriesPage() {
       </section>
       {query.isPending ? (
         <LoadingState label="Loading categories…" />
-      ) : query.isError ? (
+      ) : query.isError && query.data === undefined ? (
         <ErrorState
+          error={query.error}
           title="Categories could not be loaded"
           onRetry={() => query.refetch()}
         />

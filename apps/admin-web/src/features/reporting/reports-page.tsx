@@ -315,9 +315,10 @@ function ReportPanel({ kind }: { kind: ReportKind }) {
 
   if (report.isPending)
     return <LoadingState label={`Loading ${reportLabels[kind].toLowerCase()} report…`} />;
-  if (report.isError || !report.data)
+  if ((report.isError && report.data === undefined) || !report.data)
     return (
       <ErrorState
+        error={report.error}
         title={`${reportLabels[kind]} report could not be loaded`}
         onRetry={() => report.refetch()}
       />

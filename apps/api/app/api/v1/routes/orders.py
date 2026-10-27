@@ -55,6 +55,7 @@ async def list_orders(
     warehouse_id: UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    committed_only: bool = False,
 ) -> OrderListResponse:
     return await order_service.list_orders(
         session,
@@ -68,6 +69,7 @@ async def list_orders(
         warehouse_id=warehouse_id,
         date_from=date_from,
         date_to=date_to,
+        committed_only=committed_only,
     )
 
 
@@ -82,6 +84,7 @@ async def export_orders(
     warehouse_id: UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    committed_only: bool = False,
     ids: Annotated[list[UUID] | None, Query()] = None,
 ) -> StreamingResponse:
     result = await order_service.list_orders(
@@ -96,6 +99,7 @@ async def export_orders(
         warehouse_id=warehouse_id,
         date_from=date_from,
         date_to=date_to,
+        committed_only=committed_only,
     )
     selected = set(ids or [])
     items = [item for item in result.items if not selected or item.id in selected]

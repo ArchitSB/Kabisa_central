@@ -142,9 +142,10 @@ export function DeliveryAgentsPage() {
     [canDelete, canEdit],
   );
   if (agents.isPending) return <LoadingState label="Loading delivery agents…" />;
-  if (agents.isError || !agents.data)
+  if ((agents.isError && agents.data === undefined) || !agents.data)
     return (
       <ErrorState
+        error={agents.error}
         title="Delivery agents could not be loaded"
         onRetry={() => agents.refetch()}
       />

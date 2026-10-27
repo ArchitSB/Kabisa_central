@@ -103,8 +103,8 @@ export default function ContentPage() {
         </>
       ) : query.isLoading ? (
         <Skeleton cards={2} />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
+      ) : query.isError && query.data === undefined ? (
+        <ErrorState error={query.error} retry={() => query.refetch()} />
       ) : isFAQ ? (
         <>
           <PageIntro

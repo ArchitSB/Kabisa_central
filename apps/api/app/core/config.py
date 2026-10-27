@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://kabisa:kabisa_local@localhost:5432/kabisa"
     test_database_url: str = "postgresql+asyncpg://kabisa:kabisa_local@localhost:5432/kabisa_test"
     db_echo: bool = False
+    dashboard_cache_seconds: float | None = Field(default=None, ge=0, le=60)
+    db_pool_size: int = Field(default=10, ge=1, le=50)
+    db_max_overflow: int = Field(default=10, ge=0, le=50)
+    db_command_timeout: float = Field(default=30, gt=0)
+    db_metrics: bool = False
     uploads_dir: str = "apps/api/uploads"
     max_product_image_bytes: int = 5 * 1024 * 1024
     max_customer_document_bytes: int = 10 * 1024 * 1024

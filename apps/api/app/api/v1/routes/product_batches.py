@@ -35,6 +35,7 @@ async def list_batches(
     warehouse_id: UUID | None = None,
     batch_status: BatchStatus | None = None,
     expiring_before: date | None = None,
+    expiring_only: bool = False,
 ) -> BatchListResponse:
     return await inventory_service.list_batches(
         session,
@@ -46,6 +47,7 @@ async def list_batches(
         warehouse_id=warehouse_id,
         batch_status=batch_status,
         expiring_before=expiring_before,
+        expiring_only=expiring_only,
     )
 
 
@@ -57,6 +59,7 @@ async def export_batches(
     warehouse_id: UUID | None = None,
     batch_status: BatchStatus | None = None,
     expiring_before: date | None = None,
+    expiring_only: bool = False,
     stock: Annotated[str | None, Query(pattern="^(in|low|out)$")] = None,
     ids: Annotated[list[UUID] | None, Query()] = None,
 ) -> StreamingResponse:
@@ -70,6 +73,7 @@ async def export_batches(
         warehouse_id=warehouse_id,
         batch_status=batch_status,
         expiring_before=expiring_before,
+        expiring_only=expiring_only,
     )
     allowed_products: set[UUID] | None = None
     if stock:

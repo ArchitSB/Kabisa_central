@@ -7,12 +7,13 @@ import {
 } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Eye, Pencil, Plus, RotateCcw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DashboardDrilldownNotice } from "@/components/ui/dashboard-drilldown-notice";
 import { DataTable } from "@/components/ui/data-table";
 import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
@@ -44,8 +45,18 @@ const emptyFilters = {
 type Filters = typeof emptyFilters;
 
 export function CustomersPage() {
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const dashboardView = searchParams.get("dashboard") || "";
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...emptyFilters,
+    business_type: searchParams.get("business_type") || "",
+    status: searchParams.get("status") || "",
+    price_tier_id: searchParams.get("price_tier_id") || "",
+    payment_terms: searchParams.get("payment_terms") || "",
+    region: searchParams.get("region") || "",
+  }));
   const [selected, setSelected] = useState<Customer[]>([]);
   const [deleting, setDeleting] = useState<Customer | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);
@@ -224,9 +235,10 @@ export function CustomersPage() {
   }
 
   if (customers.isPending) return <LoadingState label="Loading customers…" />;
-  if (customers.isError || !customers.data) {
+  if ((customers.isError && customers.data === undefined) || !customers.data) {
     return (
       <ErrorState
+        error={customers.error}
         title="Customers could not be loaded"
         onRetry={() => customers.refetch()}
       />
@@ -260,6 +272,19 @@ export function CustomersPage() {
           </>
         }
       />
+      {dashboardView === "verified-customers" ? (
+        <DashboardDrilldownNotice
+          title="Verified customers"
+          description="Only businesses approved to access the storefront are shown."
+          onClear={() => navigate("/customers")}
+        />
+      ) : dashboardView === "customers-review" ? (
+        <DashboardDrilldownNotice
+          title="Businesses awaiting verification"
+          description="Review the submitted business details and regulatory documents."
+          onClear={() => navigate("/customers")}
+        />
+      ) : null}
       <FilterBar className="[&>div:last-child]:xl:grid-cols-4">
         <FilterField label="Search" htmlFor="customer-search">
           <SearchInput

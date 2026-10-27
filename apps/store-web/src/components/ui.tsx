@@ -87,7 +87,19 @@ export function ErrorState({
     <div role="alert">
       <Empty
         title={t("error.title")}
-        body={error instanceof Error ? error.message : t("error.body")}
+        body={
+          error instanceof Error
+            ? [
+                error.message,
+                "status" in error && error.status ? `HTTP ${error.status}` : "",
+                "requestId" in error && error.requestId
+                  ? `Request ${error.requestId}`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : t("error.body")
+        }
         icon={<RefreshCw size={30} />}
         action={
           retry ? (

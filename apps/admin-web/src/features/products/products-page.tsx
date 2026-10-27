@@ -7,12 +7,13 @@ import {
 } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Eye, Pencil, Plus, RotateCcw, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DashboardDrilldownNotice } from "@/components/ui/dashboard-drilldown-notice";
 import { DataTable } from "@/components/ui/data-table";
 import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
@@ -78,8 +79,20 @@ function payloadFor(product: Product, isActive = product.is_active): ProductPayl
 }
 
 export function ProductsPage() {
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const dashboardView = searchParams.get("dashboard") || "";
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...emptyFilters,
+    category_id: searchParams.get("category_id") || "",
+    brand_id: searchParams.get("brand_id") || "",
+    product_type: searchParams.get("product_type") || "",
+    is_active: searchParams.get("is_active") || "",
+    verification_status: searchParams.get("verification_status") || "",
+    stock: searchParams.get("stock") || "",
+    warehouse_id: searchParams.get("warehouse_id") || "",
+  }));
   const [selected, setSelected] = useState<Product[]>([]);
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);
@@ -112,7 +125,7 @@ export function ProductsPage() {
   });
   const brands = useQuery({ queryKey: ["brands", "filters"], queryFn: () => listBrands() });
   const warehouses = useQuery({
-    queryKey: ["warehouses", "filters"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
   });
   const refresh = () =>
@@ -354,6 +367,19 @@ export function ProductsPage() {
           </>
         }
       />
+      {dashboardView === "active-products" ? (
+        <DashboardDrilldownNotice
+          title="Active products"
+          description="Only active catalog products are included in this dashboard view."
+          onClear={() => navigate("/products")}
+        />
+      ) : dashboardView === "products-review" ? (
+        <DashboardDrilldownNotice
+          title="Products awaiting verification"
+          description="Review unverified catalog products before making them available."
+          onClear={() => navigate("/products")}
+        />
+      ) : null}
       <FilterBar>
         <FilterField label="Search" htmlFor="product-search">
           <SearchInput
@@ -513,8 +539,9 @@ export function ProductsPage() {
       ) : null}
       {products.isPending ? (
         <LoadingState label="Loading products…" />
-      ) : products.isError ? (
+      ) : products.isError && products.data === undefined ? (
         <ErrorState
+          error={products.error}
           title="Products could not be loaded"
           onRetry={() => products.refetch()}
         />

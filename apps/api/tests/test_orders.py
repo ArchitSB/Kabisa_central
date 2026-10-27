@@ -17,6 +17,7 @@ from app.models import (
     Order,
     OrderPaymentStatus,
     OrderStatus,
+    Payment,
     PriceTier,
     Product,
     ProductBatch,
@@ -162,12 +163,18 @@ async def test_order_delete_only_allows_uncommitted_records_without_payments(
             await order_service.delete_order(session, committed.id, user)
         assert protected.value.code == "order_not_deletable"
 
-        await payment_service.record_payment(
-            session,
-            committed.id,
-            PaymentCreate(amount=Decimal("100")),
-            user,
+        # Preserve protection for historical pre-delivery payments. New payments
+        # must pass the delivery gate, but existing financial records stay intact.
+        session.add(
+            Payment(
+                order_id=committed.id,
+                amount=Decimal("100"),
+                method="CASH",
+                status="COLLECTED",
+                recorded_by=user.id,
+            )
         )
+        await session.commit()
         await allocation_service.terminal_transition(
             session,
             committed.id,

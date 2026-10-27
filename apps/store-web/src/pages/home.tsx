@@ -70,7 +70,7 @@ export default function Home() {
   useSeo("One step for millions");
   if (authenticated && customer && !approved)
     return <Navigate to="/account/verification" replace />;
-  if (query.isError)
+  if (query.isError && query.data === undefined)
     return (
       <div className="container section">
         <ErrorState error={query.error} retry={() => query.refetch()} />

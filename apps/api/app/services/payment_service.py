@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppError
 from app.models import (
     AdminUser,
+    DeliveryStatus,
     Order,
     OrderPaymentStatus,
+    OrderStatus,
     Payment,
     PaymentRecordStatus,
 )
@@ -45,6 +47,16 @@ async def record_payment(
     current_user: AdminUser,
 ) -> PaymentRead:
     order = await order_service.get_order_entity(session, order_id, for_update=True)
+    if (
+        order.status != OrderStatus.DELIVERED
+        or order.delivery is None
+        or order.delivery.status != DeliveryStatus.DELIVERED
+    ):
+        raise AppError(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Payment verification is available after delivery has been marked delivered.",
+            code="payment_requires_delivery",
+        )
     if payload.status == PaymentRecordStatus.COLLECTED:
         collected = sum(
             (

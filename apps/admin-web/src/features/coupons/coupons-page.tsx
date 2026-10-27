@@ -312,8 +312,12 @@ export function CouponsPage() {
       ) : null}
       {query.isPending ? (
         <LoadingState label="Loading coupons…" />
-      ) : query.isError ? (
-        <ErrorState title="Coupons could not be loaded" onRetry={() => query.refetch()} />
+      ) : query.isError && query.data === undefined ? (
+        <ErrorState
+          error={query.error}
+          title="Coupons could not be loaded"
+          onRetry={() => query.refetch()}
+        />
       ) : query.data.items.length === 0 && !search && !active ? (
         <EmptyState
           icon={TicketPercent}

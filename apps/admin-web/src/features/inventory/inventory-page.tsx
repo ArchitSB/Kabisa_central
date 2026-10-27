@@ -16,11 +16,12 @@ import {
   SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DashboardDrilldownNotice } from "@/components/ui/dashboard-drilldown-notice";
 import { DataTable } from "@/components/ui/data-table";
 import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
@@ -52,10 +53,18 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-TZ", {
 });
 
 export function InventoryPage() {
-  const [warehouseId, setWarehouseId] = useState("");
-  const [search, setSearch] = useState("");
-  const [stock, setStock] = useState("");
-  const [batchStatus, setBatchStatus] = useState("");
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const dashboardView = searchParams.get("dashboard") || "";
+  const [warehouseId, setWarehouseId] = useState(
+    () => searchParams.get("warehouse_id") || "",
+  );
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [stock, setStock] = useState(() => searchParams.get("stock") || "");
+  const [batchStatus, setBatchStatus] = useState(
+    () => searchParams.get("batch_status") || "",
+  );
+  const [expiringOnly] = useState(() => searchParams.get("expiring_only") === "true");
   const [selected, setSelected] = useState<ProductBatch[]>([]);
   const [deleting, setDeleting] = useState<ProductBatch | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);
@@ -66,7 +75,7 @@ export function InventoryPage() {
   const canExport = useHasPermission("catalog.export");
   const queryClient = useQueryClient();
   const warehouses = useQuery({
-    queryKey: ["warehouses", "inventory"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
   });
   const summary = useQuery({
@@ -84,11 +93,12 @@ export function InventoryPage() {
     placeholderData: keepPreviousData,
   });
   const batches = useQuery({
-    queryKey: ["batches", warehouseId, batchStatus, deferredSearch],
+    queryKey: ["batches", warehouseId, batchStatus, expiringOnly, deferredSearch],
     queryFn: () =>
       listBatches({
         warehouse_id: warehouseId || undefined,
         batch_status: batchStatus || undefined,
+        expiring_only: expiringOnly ? "true" : undefined,
         search: deferredSearch || undefined,
       }),
     placeholderData: keepPreviousData,
@@ -317,15 +327,16 @@ export function InventoryPage() {
   if (summary.isPending || inventory.isPending || batches.isPending)
     return <LoadingState label="Loading inventory…" />;
   if (
-    summary.isError ||
-    inventory.isError ||
-    batches.isError ||
+    (summary.isError && summary.data === undefined) ||
+    (inventory.isError && inventory.data === undefined) ||
+    (batches.isError && batches.data === undefined) ||
     !summary.data ||
     !inventory.data ||
     !batches.data
   )
     return (
       <ErrorState
+        error={summary.error ?? inventory.error ?? batches.error}
         title="Inventory could not be loaded"
         onRetry={() => {
           summary.refetch();
@@ -409,6 +420,19 @@ export function InventoryPage() {
           </>
         }
       />
+      {dashboardView === "low-stock" ? (
+        <DashboardDrilldownNotice
+          title="Low-stock SKUs"
+          description="Products at or below their reorder point are shown for the selected warehouse."
+          onClear={() => navigate("/inventory")}
+        />
+      ) : dashboardView === "expiring-soon" ? (
+        <DashboardDrilldownNotice
+          title="Batches expiring soon"
+          description="Active, available batches within the configured expiry window are shown."
+          onClear={() => navigate("/inventory")}
+        />
+      ) : null}
       <FilterBar title="Inventory filters">
         <FilterField label="Search products" htmlFor="inventory-search">
           <SearchInput
@@ -460,6 +484,18 @@ export function InventoryPage() {
             <option value="QUARANTINED">Quarantined</option>
           </select>
         </FilterField>
+        {expiringOnly ? (
+          <FilterField label="Expiry window" htmlFor="batch-expiring-window">
+            <button
+              id="batch-expiring-window"
+              type="button"
+              className="control-base w-full text-left text-primary-800"
+              onClick={() => navigate("/inventory")}
+            >
+              Expiring soon · clear
+            </button>
+          </FilterField>
+        ) : null}
       </FilterBar>
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map(({ label, value, hint, icon: Icon }) => (

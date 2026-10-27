@@ -1,3 +1,4 @@
+import { StaleDataBanner } from "./stale-data-banner";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   Link,
@@ -299,6 +300,7 @@ export function Layout() {
       )}
       <main id="main-content" tabIndex={-1}>
         <PageMotion key={location.pathname}>
+          <StaleDataBanner />
           <Outlet />
         </PageMotion>
       </main>

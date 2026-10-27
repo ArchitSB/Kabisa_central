@@ -143,9 +143,13 @@ export function ProductDetailPage() {
     [],
   );
   if (product.isPending) return <LoadingState label="Loading product…" />;
-  if (product.isError || !product.data)
+  if ((product.isError && product.data === undefined) || !product.data)
     return (
-      <ErrorState title="Product could not be loaded" onRetry={() => product.refetch()} />
+      <ErrorState
+        error={product.error}
+        title="Product could not be loaded"
+        onRetry={() => product.refetch()}
+      />
     );
   const item = product.data;
   const currency = settings.data?.currency ?? "TZS";

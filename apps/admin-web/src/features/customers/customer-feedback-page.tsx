@@ -143,9 +143,13 @@ export function CustomerFeedbackPage() {
   );
 
   if (feedback.isPending) return <LoadingState label="Loading feedback…" />;
-  if (feedback.isError || !feedback.data) {
+  if ((feedback.isError && feedback.data === undefined) || !feedback.data) {
     return (
-      <ErrorState title="Feedback could not be loaded" onRetry={() => feedback.refetch()} />
+      <ErrorState
+        error={feedback.error}
+        title="Feedback could not be loaded"
+        onRetry={() => feedback.refetch()}
+      />
     );
   }
   return (

@@ -423,8 +423,9 @@ function ContentList({ kind }: { kind: Kind }) {
       )}
       {query.isLoading ? (
         <LoadingState />
-      ) : query.isError ? (
+      ) : query.isError && query.data === undefined ? (
         <ErrorState
+          error={query.error}
           title={getApiErrorDetail(query.error)}
           onRetry={() => query.refetch()}
         />
@@ -920,9 +921,13 @@ function SettingsEditor() {
     }
   }
   if (query.isLoading) return <LoadingState />;
-  if (query.isError)
+  if (query.isError && query.data === undefined)
     return (
-      <ErrorState title={getApiErrorDetail(query.error)} onRetry={() => query.refetch()} />
+      <ErrorState
+        error={query.error}
+        title={getApiErrorDetail(query.error)}
+        onRetry={() => query.refetch()}
+      />
     );
   return (
     <div className="space-y-5">
@@ -1145,9 +1150,13 @@ function Prescriptions() {
       (await apiClient.get<{ items: Row[] }>("/storefront/prescriptions")).data,
   });
   if (query.isLoading) return <LoadingState />;
-  if (query.isError)
+  if (query.isError && query.data === undefined)
     return (
-      <ErrorState title={getApiErrorDetail(query.error)} onRetry={() => query.refetch()} />
+      <ErrorState
+        error={query.error}
+        title={getApiErrorDetail(query.error)}
+        onRetry={() => query.refetch()}
+      />
     );
   return (
     <div className="space-y-4">

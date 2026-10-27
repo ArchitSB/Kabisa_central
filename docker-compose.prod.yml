@@ -1,9 +1,21 @@
 name: kabisa-production
 
+# Budget: 2 vCPU / 4 GiB VM; about 1 GiB remains for the OS, Docker and Caddy.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *logging
+    mem_limit: 1280m
+    cpus: 1.0
+    stop_grace_period: 60s
+    command: ["postgres", "-c", "max_connections=80", "-c", "shared_buffers=256MB", "-c", "tcp_keepalives_idle=60", "-c", "tcp_keepalives_interval=15", "-c", "tcp_keepalives_count=4", "-c", "idle_in_transaction_session_timeout=60000"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -22,10 +34,17 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
+    logging: *logging
+    mem_limit: 768m
+    cpus: 1.5
+    stop_grace_period: 45s
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-graceful-shutdown", "30", "--proxy-headers", "--forwarded-allow-ips=*"]
     env_file: ${KABISA_ENV_FILE:-.env.prod}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       UPLOADS_DIR: /var/lib/kabisa/uploads
+      DB_POOL_SIZE: 10
+      DB_MAX_OVERFLOW: 10
     volumes:
       - uploads_prod_data:/var/lib/kabisa/uploads
     depends_on:
@@ -37,7 +56,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)",
         ]
       interval: 15s
       timeout: 5s
@@ -45,6 +64,10 @@ services:
       start_period: 30s
 
   frontend:
+    logging: *logging
+    mem_limit: 128m
+    cpus: 0.25
+    stop_grace_period: 15s
     build:
       context: .
       dockerfile: apps/admin-web/Dockerfile
@@ -64,6 +87,10 @@ services:
       retries: 5
 
   store-web:
+    logging: *logging
+    mem_limit: 128m
+    cpus: 0.25
+    stop_grace_period: 15s
     build:
       context: .
       dockerfile: apps/store-web/Dockerfile
@@ -82,6 +109,10 @@ services:
       retries: 5
 
   notifications:
+    logging: *logging
+    mem_limit: 256m
+    cpus: 0.5
+    stop_grace_period: 30s
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -90,12 +121,24 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       UPLOADS_DIR: /var/lib/kabisa/uploads
+      DB_POOL_SIZE: 2
+      DB_MAX_OVERFLOW: 2
     entrypoint: ["python", "-m", "app.notify", "--loop"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from pathlib import Path; import time; assert time.time()-float(Path('/tmp/kabisa-notify-heartbeat').read_text()) < 120"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     depends_on:
       api:
         condition: service_healthy
 
   postgres-backup:
+    logging: *logging
+    mem_limit: 256m
+    cpus: 0.5
+    stop_grace_period: 60s
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
@@ -117,9 +160,16 @@ services:
         while true; do
           stamp=$$(date -u +%Y%m%dT%H%M%SZ)
           pg_dump --format=custom --file="/backups/kabisa-$${stamp}.dump"
+          touch /tmp/backup-success
           find /backups -type f -name 'kabisa-*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
           sleep "$${BACKUP_INTERVAL_SECONDS}"
         done
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/backup-success && test $$(( $$(date +%s) - $$(stat -c %Y /tmp/backup-success) )) -lt $$(( $${BACKUP_INTERVAL_SECONDS} + 3600 ))"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10m
 
 volumes:
   postgres18_prod_data:

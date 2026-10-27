@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 
 import pytest_asyncio
 from app import models  # noqa: F401
+from app.api.v1.routes.dashboard import dashboard_cache
 from app.core.config import settings
 from app.core.database import Base, get_db_session
 from app.main import app
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
 
 @pytest_asyncio.fixture
 async def test_session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    dashboard_cache.clear()
     test_url = make_url(settings.test_database_url)
     main_url = make_url(settings.database_url)
     if test_url == main_url or not (test_url.database or "").endswith("_test"):

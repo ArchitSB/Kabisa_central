@@ -326,7 +326,7 @@ export default function Catalog() {
           )}
           {query.isLoading ? (
             <Skeleton cards={6} />
-          ) : query.isError ? (
+          ) : query.isError && query.data === undefined ? (
             <ErrorState error={query.error} retry={() => query.refetch()} />
           ) : query.data?.items.length ? (
             <>

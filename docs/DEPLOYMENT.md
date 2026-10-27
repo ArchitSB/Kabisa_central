@@ -21,14 +21,18 @@ restart automatically unless explicitly stopped.
 cp .env.prod.example .env.prod
 # Replace every CHANGE_ME value and set the real HTTPS origin.
 docker compose --env-file .env.prod -f docker-compose.prod.yml build
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait postgres
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api alembic upgrade head
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec api python -m app.bootstrap
 docker compose --env-file .env.prod -f docker-compose.prod.yml exec api python -m app.integrity
 ```
 
-The API entrypoint runs `alembic upgrade head` before uvicorn starts. For a
-multi-replica deployment, run migrations once as a release job instead and
-override the entrypoint for application replicas.
+The API entrypoint starts the requested process without automatic migrations or
+seeding. Run migrations once as an explicit release step. Back up an existing
+database before schema changes; see the [performance/reliability runbook](PERFORMANCE_RELIABILITY_ROUND2.md).
+`KABISA_RUN_MIGRATIONS=true` and `KABISA_SEED_DEMO=true` opt into provisioning
+at startup, but should remain false during normal operation.
 
 `app.bootstrap` is idempotent and production-safe: it creates auth/RBAC, the
 configured super-admin, price tiers, real warehouses, reference categories and
@@ -88,11 +92,12 @@ retention.
 
 ## Customer storefront, native API and notifications
 
-Production Compose now builds API, the existing `frontend` admin, `store-web`, and a durable notification worker. PostgreSQL and upload volumes are preserved. Both frontends use multi-stage builds and unprivileged nginx on internal port 8080. Host defaults: admin 127.0.0.1:8080, store 127.0.0.1:8081. API is internal to the network. `apps/api/docker-entrypoint.sh` upgrades migrations and inserts missing storefront content before starting the API; it does not run the original catalog-resetting seed.
+Production Compose builds API, the `frontend` admin, `store-web`, and a durable notification worker. PostgreSQL and upload volumes are preserved. Both frontends use multi-stage builds and unprivileged nginx on internal port 8080. Host defaults: admin 127.0.0.1:8080, store 127.0.0.1:8081. API is internal to the network. Provision schemas and any required initial storefront content explicitly; container restarts do not migrate or seed.
 
 ```bash
 cp .env.prod.example .env.prod
-# Configure every placeholder, JWT secret, credentials, gateway and HTTPS origins.
+# Fresh installation only: configure placeholders and follow the migration steps above.
+# Existing installation: preserve .env.prod and back up before schema changes.
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 ```
 

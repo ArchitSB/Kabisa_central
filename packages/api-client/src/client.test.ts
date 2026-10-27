@@ -65,7 +65,7 @@ test("failed refresh clears session and preserves structured error", async () =>
     (e) =>
       e instanceof ApiError &&
       e.code === "invalid_refresh" &&
-      e.message === "Sign in again.",
+      e.message === "Your session has expired. Please sign in again.",
   );
   assert.equal(cleared, true);
 });
@@ -119,4 +119,70 @@ test("late 401 reuses an already refreshed token", async () => {
   });
   await Promise.all([client.get("/slow"), client.get("/fast")]);
   assert.equal(rotated, 1);
+});
+
+test("transient GET retries once; writes and other HTTP failures never retry", async () => {
+  for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+    let calls = 0;
+    const client = createApiClient({
+      baseUrl: "https://offline.invalid",
+      tokens: { get: () => null, set: () => {} },
+      fetch: async () => {
+        calls++;
+        return { ...response(503, {}), headers: { get: () => "request-123" } };
+      },
+    });
+    await assert.rejects(
+      client.request("/example", { method }),
+      (error) =>
+        error instanceof ApiError &&
+        error.status === 503 &&
+        error.requestId === "request-123",
+    );
+    assert.equal(calls, method === "GET" ? 2 : 1);
+  }
+  for (const status of [400, 401, 403, 500]) {
+    let calls = 0;
+    const client = createApiClient({
+      baseUrl: "https://offline.invalid",
+      tokens: { get: () => null, set: () => {} },
+      fetch: async () => {
+        calls++;
+        return response(status, {});
+      },
+    });
+    await assert.rejects(client.get("/example"), ApiError);
+    assert.equal(calls, 1);
+  }
+});
+
+test("network errors retry once and timeout overrides abort without retrying writes", async () => {
+  let calls = 0;
+  const client = createApiClient({
+    baseUrl: "https://offline.invalid",
+    timeoutMs: 10000,
+    tokens: { get: () => null, set: () => {} },
+    fetch: async (_url, init) => {
+      calls++;
+      if (init?.method === "GET") throw new TypeError("Network unavailable");
+      return new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener(
+          "abort",
+          () => reject(new Error("aborted")),
+          { once: true },
+        ),
+      );
+    },
+  });
+  await assert.rejects(
+    client.get("/example"),
+    (error) => error instanceof ApiError && error.code === "network",
+  );
+  assert.equal(calls, 2);
+  calls = 0;
+  await assert.rejects(
+    client.request("/example", { method: "POST", timeoutMs: 5 }),
+    (error) => error instanceof ApiError && error.code === "timeout",
+  );
+  assert.equal(calls, 1);
 });

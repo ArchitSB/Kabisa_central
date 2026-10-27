@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.database import get_db_session
 from app.core.deps import require_permission
@@ -19,6 +19,7 @@ from app.schemas import (
     RoleRead,
     RoleUpdate,
 )
+from app.services.read_queries import counted_page
 
 router = APIRouter()
 RoleSortField = Literal["name", "created_at", "updated_at"]
@@ -159,17 +160,16 @@ async def list_roles(
     sort_column = getattr(Role, allowed_sort_fields[sort_name])
     order_by = sort_column.desc() if descending else sort_column.asc()
 
-    total = await session.scalar(select(func.count()).select_from(Role).where(*filters))
-    roles = (
-        await session.scalars(
-            select(Role)
-            .where(*filters)
-            .options(selectinload(Role.permissions))
-            .order_by(order_by, Role.id.asc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
-    ).all()
+    rows, total = await counted_page(
+        session,
+        select(Role)
+        .where(*filters)
+        .options(joinedload(Role.permissions))
+        .order_by(order_by, Role.id.asc()),
+        page=page,
+        page_size=page_size,
+    )
+    roles = [row[0] for row in rows]
     return RoleListResponse(
         items=[serialize_role(role) for role in roles],
         total=total or 0,

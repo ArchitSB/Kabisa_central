@@ -2,6 +2,8 @@
 
 import argparse
 import asyncio
+from pathlib import Path
+from time import time
 
 from app.core.database import async_session_factory, engine
 from app.services.store_notifications import deliver_pending
@@ -14,6 +16,7 @@ async def main(continuous=False):
                 sent = await deliver_pending(session)
                 if sent:
                     print("Notifications delivered:", sent, flush=True)
+            await asyncio.to_thread(Path("/tmp/kabisa-notify-heartbeat").write_text, str(time()))
             if not continuous:
                 break
             await asyncio.sleep(30)

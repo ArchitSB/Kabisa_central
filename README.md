@@ -20,25 +20,35 @@ corepack prepare pnpm@10.14.0 --activate
 
 ## Continue on this device
 
-The existing `.env`, Python environment and mock database are configured. Keep the running host PostgreSQL service; a second Docker PostgreSQL cannot bind its occupied port 5432.
+The existing `.env`, Python environment and database are configured. For development against the GCP database, start the tunnel in one terminal, then the API and admin in another:
 
 ```bash
-source .venv/bin/activate
-pnpm install --frozen-lockfile
-alembic -c apps/api/alembic.ini upgrade head
-python -m app.seed.storefront
+# Terminal 1 (skip if the tunnel on 5440 is already running)
+pnpm dev:tunnel
+# Terminal 2
+pnpm dev:all
+# Optional terminal 3
+pnpm dev:store
 ```
 
-The storefront seed is additive: it does not reset your original catalog or operational orders. Start these in separate terminals:
+`dev:all` checks the tunnel and free ports, starts the API and admin, and stops both when you press Ctrl+C. It does not migrate or seed the database. To start each service separately:
 
 ```bash
-uvicorn app.main:app --app-dir apps/api --reload
+pnpm dev:api
 pnpm dev:web
 pnpm dev:store
 # Native app work is deferred.
 # Optional asynchronous notifications:
 python -m app.notify --loop
 ```
+
+On this device, if `pnpm` itself stalls while fetching the pinned package-manager version or checking dependency policies, use the cached runner for existing installations:
+
+```bash
+npm_config_manage_package_manager_versions=false node "$HOME/.cache/node/corepack/v1/pnpm/10.10.0/bin/pnpm.cjs" dev:all
+```
+
+Replace `dev:all` with `dev:store` as needed. This device-specific workaround does not change the project's version pin. Restore the pinned runner before changing dependencies or regenerating the lockfile.
 
 | App | Local address / command |
 | --- | --- |
@@ -49,7 +59,15 @@ python -m app.notify --loop
 | Native app | `pnpm dev:mobile`, then open with Expo |
 | Native browser preview | `pnpm --filter @kabisa/mobile web` |
 
-Admin uses `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from your `.env`. The new verified test buyer can log in with `kabisa.buyer@example.com` or `+255700900010` and the password saved in the ignored `.env.store-test` file. The verified customer demo is `+255700900001`; the pending demo is `+255700900002`. Their local password is in the ignored `.env.store-demo` file. Optional demo creation requires `STORE_DEMO_PASSWORD` in development; seed reruns do not overwrite existing customer passwords. Do not use demo accounts in production.
+When using the SSH database tunnel, put `VITE_API_TIMEOUT_MS=60000` in the repository-root `.env.development.local`. **Restart both Vite servers after changing it**; reloading the browser alone does not reload Vite's environment. Production builds retain the 10-second default unless explicitly overridden. Both servers use strict ports: admin is 5173, storefront is 5174.
+
+The tunnel script reconnects after disconnects using SSH keepalives. It defaults to `kabisatunnel@34.35.70.11`, key `~/.ssh/kabisa/kabisa_main_access_key.pem`, and local `5440` → remote `127.0.0.1:5433`. Override `TUNNEL_HOST`, `TUNNEL_USER`, `TUNNEL_KEY`, `TUNNEL_PORT`, `TUNNEL_REMOTE_HOST`, `TUNNEL_REMOTE_PORT`, `TUNNEL_SSH_PORT` or `TUNNEL_BACKOFF` using environment variables or a trusted, git-ignored `.env.tunnel` shell file. File values take precedence over exported values. The script refuses to replace an existing listener.
+
+Development API responses include `X-DB-Queries`, `X-DB-Time-Ms` and `X-Request-ID`. Independent dashboard reads run concurrently. `DASHBOARD_CACHE_SECONDS` defaults to 30 in development and 0 in production; cached summaries can lag external changes by that interval. Successful mutations handled by the same API process invalidate the cache. Every request still authenticates and checks permissions; caches are separated by permission set and warehouse. Keep caching disabled with multiple production workers unless this staleness is acceptable.
+
+The dev-only top-bar dot probes `/health` every 30 seconds while the tab is visible. `/health` checks database readiness; `/health/live` checks only the API process. Startup logs report the database host/port/name and warm-up result without credentials. The [performance and reliability report](docs/PERFORMANCE_RELIABILITY_ROUND2.md) contains measurements, validation and server diagnostics.
+
+For an existing database, sign in with the administrator's current account credentials. `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` configure initial provisioning; editing a local environment file does not change an existing account's password. The new verified test buyer can log in with `kabisa.buyer@example.com` or `+255700900010` and the password saved in the ignored `.env.store-test` file. The verified customer demo is `+255700900001`; the pending demo is `+255700900002`. Their local password is in the ignored `.env.store-demo` file. Optional demo creation requires `STORE_DEMO_PASSWORD` in development; seed reruns do not overwrite existing customer passwords. Do not use demo accounts in production.
 
 For a phone, configure a reachable `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_STORE_URL`; see [Mobile readiness](docs/MOBILE_READINESS.md). Android bundle export is implemented; signed APK/AAB distribution requires your Expo/Play accounts and device testing.
 
@@ -71,8 +89,9 @@ The original `app.seed` reconciles the operational mock dataset and configured s
 
 ## Authentication and first login
 
-- Sign in with the `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` configured in
-  the local `.env`. Passwords are never committed, logged, or returned.
+- Sign in with the existing account's credentials, or the initial
+  `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` used when provisioning a new database.
+  Passwords are never committed, logged, or returned.
 - The developer super-admin can create operational administrators under
   **Management → Admin users**, set an initial password, and assign a role.
 - Every account that can sign into admin is an `admin_users` record. Customer
@@ -136,7 +155,7 @@ Detailed operational references:
 
 For production, copy `.env.prod.example` to the untracked `.env.prod`, replace
 all placeholders, then use `docker-compose.prod.yml`. The API image runs
-Alembic before startup; PostgreSQL, uploads, and backups use named volumes.
+without automatic migration or seeding; PostgreSQL, uploads, and backups use named volumes. Back up an existing database before schema changes, then run `alembic upgrade head` explicitly in the API container as part of deployment. `KABISA_RUN_MIGRATIONS=true` and `KABISA_SEED_DEMO=true` are explicit opt-ins, not restart defaults. See the performance report for exact commands and the 2 vCPU / 4 GiB Compose resource budget.
 
 ## Catalog and inventory
 
@@ -205,6 +224,10 @@ is the order-eligibility flag; credit limits remain stored but are not yet
 enforced.
 
 ## Orders, payments, and delivery
+
+The order workspace follows **Items & FEFO allocations → Delivery assignment and confirmation → Payment verification**. Payment recording is blocked by the API until both the order and its delivery are marked delivered. Finance/accounts and authorized administrators use `payments.record`; the standard sales and inventory roles cannot verify payments. Existing historical payments are retained. No payment is required before assigning or completing delivery.
+
+Dashboard cards use live database summaries, refresh every minute, and open the matching filtered lists. Successful edits invalidate the overview, and the refresh control shows the summary timestamp in Tanzania time. Card motion respects reduced-motion preferences.
 
 The live Phase 4 module is available under **Orders** and **Delivery agents**.
 It includes:

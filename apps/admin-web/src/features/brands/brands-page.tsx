@@ -186,8 +186,12 @@ export function BrandsPage() {
       </section>
       {query.isPending ? (
         <LoadingState label="Loading brands…" />
-      ) : query.isError ? (
-        <ErrorState title="Brands could not be loaded" onRetry={() => query.refetch()} />
+      ) : query.isError && query.data === undefined ? (
+        <ErrorState
+          error={query.error}
+          title="Brands could not be loaded"
+          onRetry={() => query.refetch()}
+        />
       ) : (
         <DataTable
           ariaLabel="Brands"

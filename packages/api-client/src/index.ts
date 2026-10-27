@@ -14,6 +14,7 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public requestId?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -22,6 +23,7 @@ export class ApiError extends Error {
 export interface TransportResponse {
   ok: boolean;
   status: number;
+  headers?: { get(name: string): string | null };
   json(): Promise<unknown>;
 }
 export type Transport = (
@@ -30,15 +32,95 @@ export type Transport = (
     method?: string;
     headers?: Record<string, string>;
     body?: string;
+    signal?: AbortSignal;
   },
 ) => Promise<TransportResponse>;
 export function createApiClient(options: {
   baseUrl: string;
   fetch: Transport;
   tokens: TokenProvider;
+  timeoutMs?: number;
 }) {
   let rotating: Promise<Tokens | null> | null = null;
   const base = options.baseUrl.replace(/\/$/, "");
+  const timeoutMs =
+    options.timeoutMs &&
+    Number.isFinite(options.timeoutMs) &&
+    options.timeoutMs > 0
+      ? options.timeoutMs
+      : 10_000;
+
+  async function send(
+    url: string,
+    init: NonNullable<Parameters<Transport>[1]>,
+    timeout = timeoutMs,
+  ): Promise<TransportResponse> {
+    const isGet = (init.method ?? "GET").toUpperCase() === "GET";
+    for (let attempt = 0; ; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response = await options.fetch(url, {
+          ...init,
+          signal: controller.signal,
+        });
+        const data =
+          response.status === 204
+            ? undefined
+            : await response.json().catch((error: unknown) => {
+                if (controller.signal.aborted) throw error;
+                return {};
+              });
+        if (controller.signal.aborted)
+          throw new ApiError(
+            0,
+            "timeout",
+            "The server took too long to respond. Please try again.",
+          );
+        if (
+          isGet &&
+          attempt === 0 &&
+          [502, 503, 504].includes(response.status)
+        ) {
+          clearTimeout(timer);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          continue;
+        }
+        return {
+          ok: response.ok,
+          status: response.status,
+          headers: response.headers,
+          json: async () => data,
+        };
+      } catch (error) {
+        clearTimeout(timer);
+        const failure = controller.signal.aborted
+          ? new ApiError(
+              0,
+              "timeout",
+              "The server took too long to respond. Please try again.",
+            )
+          : error instanceof ApiError
+            ? error
+            : new ApiError(
+                0,
+                "network",
+                "The API cannot be reached. Check your connection.",
+              );
+        if (
+          isGet &&
+          attempt === 0 &&
+          ["timeout", "network"].includes(failure.code)
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          continue;
+        }
+        throw failure;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
   async function decode<T>(response: TransportResponse): Promise<T> {
     if (response.status === 204) return undefined as T;
     const data = (await response.json().catch(() => ({}))) as {
@@ -49,9 +131,16 @@ export function createApiClient(options: {
       throw new ApiError(
         response.status,
         data.code ?? "request_failed",
-        typeof data.detail === "string"
-          ? data.detail
-          : "We could not complete that request. Please try again.",
+        response.status === 401
+          ? "Your session has expired. Please sign in again."
+          : response.status === 403
+            ? "You do not have permission to access this content."
+            : response.status >= 500
+              ? "The server could not complete this request. Please try again shortly."
+              : typeof data.detail === "string"
+                ? data.detail
+                : "We could not complete that request. Please try again.",
+        response.headers?.get("X-Request-ID") ?? undefined,
       );
     return data as T;
   }
@@ -61,19 +150,24 @@ export function createApiClient(options: {
       method?: string;
       body?: unknown;
       headers?: Record<string, string>;
+      timeoutMs?: number;
     } = {},
     retried = false,
   ): Promise<T> {
     const tokens = await options.tokens.get();
-    const response = await options.fetch(`${base}${path}`, {
-      method: init.method ?? "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(tokens ? { Authorization: `Bearer ${tokens.access_token}` } : {}),
-        ...init.headers,
+    const response = await send(
+      `${base}${path}`,
+      {
+        method: init.method ?? "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tokens ? { Authorization: `Bearer ${tokens.access_token}` } : {}),
+          ...init.headers,
+        },
+        ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
       },
-      ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
-    });
+      init.timeoutMs,
+    );
     if (
       response.status === 401 &&
       tokens &&
@@ -87,7 +181,7 @@ export function createApiClient(options: {
         return request<T>(path, init, true);
       rotating ??= (async () => {
         try {
-          const r = await options.fetch(`${base}/auth/refresh`, {
+          const r = await send(`${base}/auth/refresh`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ refresh_token: tokens.refresh_token }),

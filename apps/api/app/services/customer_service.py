@@ -46,6 +46,7 @@ from app.schemas.customer import (
     VerificationReadiness,
 )
 from app.services.common import sort_expression
+from app.services.read_queries import counted_page
 
 STANDARD_DOCUMENT_TYPES = (
     CustomerDocumentType.TIN,
@@ -291,11 +292,9 @@ async def list_customers(
         },
         default_field="business_name",
     )
-    total = await session.scalar(select(func.count()).select_from(Customer).where(*filters))
     statement = select(Customer).where(*filters).order_by(order_by, Customer.id.asc())
-    if page_size is not None:
-        statement = statement.offset((page - 1) * page_size).limit(page_size)
-    items = (await session.scalars(statement)).all()
+    rows, total = await counted_page(session, statement, page=page, page_size=page_size)
+    items = [row[0] for row in rows]
     return CustomerListResponse(
         items=[_customer_read(item) for item in items],
         total=total or 0,

@@ -2,8 +2,9 @@
 
 ## Health, logs, and audits
 
-- Liveness: `GET /health` confirms the API process is running.
-- Readiness: `GET /api/v1/health/ready` performs a database round trip.
+- Liveness: `GET /health/live` confirms the API process is running without querying the database.
+- Readiness: `GET /health` and `GET /api/v1/health/ready` perform a database round trip with a short timeout and return 503 when unavailable.
+- See [performance/reliability diagnostics](PERFORMANCE_RELIABILITY_ROUND2.md) for request IDs, Docker DNS, pool limits and exact server checks.
 - API logs are JSON in production and include request ID, actor ID when known,
   method, path, status, latency, and client IP. Preserve `X-Request-ID` through
   the reverse proxy.

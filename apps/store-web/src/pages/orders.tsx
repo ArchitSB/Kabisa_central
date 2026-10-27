@@ -30,7 +30,7 @@ export function OrdersList() {
     queryFn: () => api.get<Page<StoreOrder>>("/orders"),
   });
   if (query.isLoading) return <Skeleton cards={2} />;
-  if (query.isError)
+  if (query.isError && query.data === undefined)
     return <ErrorState error={query.error} retry={() => query.refetch()} />;
   if (!query.data?.items.length)
     return (
@@ -89,10 +89,10 @@ export default function OrderDetail() {
         <Skeleton cards={2} />
       </div>
     );
-  if (query.isError || !order)
+  if ((query.isError && query.data === undefined) || !order)
     return (
       <div className="container">
-        <ErrorState error={query.error} />
+        <ErrorState error={query.error} retry={() => query.refetch()} />
       </div>
     );
   const stage = orderStages.findIndex((s) => s === order.status);

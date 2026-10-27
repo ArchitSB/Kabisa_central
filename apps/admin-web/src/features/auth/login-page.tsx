@@ -18,6 +18,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/resource-state";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/features/auth/auth-store";
 import type { ApiErrorResponse } from "@/features/auth/types";
@@ -40,8 +41,15 @@ export function LoginPage() {
   const login = useAuthStore((state) => state.login);
   const bootstrap = useAuthStore((state) => state.bootstrap);
   const status = useAuthStore((state) => state.status);
+  const restoreError = useAuthStore((state) => state.restoreError);
+  const sessionExpired = useAuthStore((state) => state.sessionExpired);
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(
+    sessionExpired ||
+      new URLSearchParams(location.search).get("reason") === "session-expired"
+      ? "Your session has expired. Please sign in again."
+      : null,
+  );
   const {
     register,
     handleSubmit,
@@ -67,6 +75,15 @@ export function LoginPage() {
     }
   }, [setFocus, status]);
 
+  if (status === "unavailable") {
+    return (
+      <ErrorState
+        title="Your workspace could not be restored"
+        error={restoreError}
+        onRetry={() => void bootstrap()}
+      />
+    );
+  }
   if (status === "authenticated") {
     return <Navigate to="/" replace />;
   }
@@ -265,12 +282,12 @@ export function LoginPage() {
                 ) : null}
               </div>
 
-              {serverError ? (
+              {serverError || sessionExpired ? (
                 <div
                   role="alert"
                   className="rounded-control border border-danger/20 bg-danger-surface px-4 py-3 text-sm leading-5 text-danger"
                 >
-                  {serverError}
+                  {serverError ?? "Your session has expired. Please sign in again."}
                 </div>
               ) : null}
 

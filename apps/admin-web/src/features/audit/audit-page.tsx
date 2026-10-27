@@ -256,8 +256,9 @@ export function AuditPage() {
       </FilterBar>
 
       {query.isLoading ? <LoadingState label="Loading audit records…" /> : null}
-      {query.isError ? (
+      {query.isError && query.data === undefined ? (
         <ErrorState
+          error={query.error}
           title="Audit records could not be loaded"
           onRetry={() => query.refetch()}
         />

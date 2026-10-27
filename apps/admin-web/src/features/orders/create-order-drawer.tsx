@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/drawer";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { ErrorState } from "@/components/ui/resource-state";
 import { listProducts, listWarehouses } from "@/features/catalog/catalog-api";
 import { listCustomers } from "@/features/customers/customers-api";
 import { useHasPermission } from "@/features/auth/auth-store";
@@ -78,7 +79,7 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
     enabled: open,
   });
   const warehouses = useQuery({
-    queryKey: ["warehouses", "order-options"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
     enabled: open,
   });
@@ -421,9 +422,11 @@ export function CreateOrderDrawer({ trigger }: { trigger: React.ReactNode }) {
                 <p className="text-sm text-secondary">Checking prices and stock…</p>
               ) : null}
               {preview.isError ? (
-                <p className="text-sm font-medium text-danger">
-                  {getApiErrorDetail(preview.error)}
-                </p>
+                <ErrorState
+                  title="Prices and stock could not be refreshed"
+                  error={preview.error}
+                  onRetry={() => preview.refetch()}
+                />
               ) : null}
               {preview.data ? (
                 <div className="space-y-2 text-sm">

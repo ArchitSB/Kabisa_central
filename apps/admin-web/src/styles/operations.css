@@ -546,7 +546,7 @@
 }
 .ops-metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 .ops-metric {
@@ -556,6 +556,27 @@
   padding: 19px 20px;
   position: relative;
   overflow: hidden;
+}
+.ops-metric-action {
+  display: block;
+  text-decoration: none;
+  background: radial-gradient(ellipse at 100% 0%, #edf3fc 0%, transparent 65%), white;
+  width: 100%;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    border-color 180ms var(--ease-kabisa),
+    box-shadow 180ms var(--ease-kabisa);
+}
+.ops-metric-action:hover {
+  border-color: #aabbd3;
+  box-shadow: 0 12px 28px #101f3812;
+}
+.ops-metric-action:focus-visible {
+  outline: 3px solid #c7d4e8;
+  outline-offset: 2px;
 }
 .ops-metric:first-child {
   border-top: 3px solid #c71920;
@@ -606,6 +627,75 @@
   font-size: 10px;
   color: #65758b;
   margin-top: 7px;
+}
+.ops-metric-warning {
+  background: radial-gradient(ellipse at 100% 0%, #fff3e3 0%, transparent 65%), white;
+}
+.ops-metric-warning .ops-metric-icon {
+  background: #fff0dc;
+  color: #9b5718;
+}
+.ops-metric-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid #e8edf4;
+  margin-top: 18px;
+  padding-top: 12px;
+}
+.ops-metric-bottom .ops-metric-helper {
+  margin-top: 0;
+}
+.ops-metric-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #193c69;
+}
+.ops-metric-open svg {
+  transition: transform 180ms var(--ease-kabisa);
+}
+.ops-metric-action:is(:hover, :focus-visible) .ops-metric-open svg {
+  transform: translate(2px, -2px);
+}
+.ops-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 12px;
+}
+.ops-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #21815b;
+  box-shadow: 0 0 0 3px #21815b12;
+}
+.ops-live-dot.is-stale {
+  background: #b36b16;
+  box-shadow: 0 0 0 3px #b36b1612;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ops-metric-open svg {
+    transition: none;
+  }
+  .ops-metric-action:is(:hover, :focus-visible) .ops-metric-open svg {
+    transform: none;
+  }
+}
+@media (max-width: 540px) {
+  .ops-metric-bottom {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .ops-live-status {
+    margin: 6px 0;
+    display: flex;
+  }
 }
 .ops-overview-main {
   display: grid;

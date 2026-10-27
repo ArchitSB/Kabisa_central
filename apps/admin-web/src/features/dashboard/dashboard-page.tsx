@@ -4,21 +4,21 @@ import {
   AlertTriangle,
   ChevronRight,
   ShieldCheck,
-  ArrowDownRight,
   ArrowUpRight,
   Boxes,
   CalendarClock,
   ClipboardList,
   Download,
-  Minus,
   PackageCheck,
   Plus,
   ReceiptText,
+  RefreshCw,
   Store,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
+import { MetricCard } from "./metric-card";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -37,7 +37,7 @@ import {
 } from "@/features/orders/orders.data";
 import { downloadReport, getDashboardSummary } from "@/features/reporting/reporting-api";
 import type { DashboardMetric } from "@/features/reporting/types";
-import { cn, formatCompact, formatMoney } from "@/lib/utils";
+import { formatCompact, formatMoney } from "@/lib/utils";
 
 type Kpi = {
   label: string;
@@ -46,7 +46,26 @@ type Kpi = {
   metric: DashboardMetric;
   icon: LucideIcon;
   warning?: boolean;
+  to?: string;
 };
+
+function businessDateParam() {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Africa/Dar_es_Salaam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function dashboardRoute(path: string, params: Record<string, string | undefined>) {
+  const search = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => Boolean(value)) as Array<[string, string]>,
+  );
+  return `${path}?${search.toString()}`;
+}
 
 function orderTone(status: OrderStatus) {
   if (status === "DELIVERED") return "success" as const;
@@ -67,9 +86,11 @@ export function DashboardPage() {
   const dashboard = useQuery({
     queryKey: ["dashboard-summary", warehouseId],
     queryFn: () => getDashboardSummary(warehouseId || undefined),
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
   const warehouses = useQuery({
-    queryKey: ["warehouses", "dashboard-options"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
     enabled: canViewInventory,
   });
@@ -79,6 +100,7 @@ export function DashboardPage() {
     onError: () => toast.error("Report could not be downloaded"),
   });
   const data = dashboard.data;
+  const today = businessDateParam();
   const kpis = useMemo<Kpi[]>(() => {
     if (!data) return [];
     return [
@@ -88,6 +110,14 @@ export function DashboardPage() {
         helper: `${data.orders_awaiting_review ?? 0} awaiting review`,
         metric: data.orders_today,
         icon: ClipboardList,
+        to: canViewOrders
+          ? dashboardRoute("/orders", {
+              dashboard: "orders-today",
+              date_from: today,
+              date_to: today,
+              warehouse_id: warehouseId || undefined,
+            })
+          : undefined,
       },
       data.sales_today && {
         label: "Today’s sales",
@@ -95,6 +125,15 @@ export function DashboardPage() {
         helper: `${formatMoney(data.sales_collected_today ?? 0, data.currency)} collected`,
         metric: data.sales_today,
         icon: TrendingUp,
+        to: canViewOrders
+          ? dashboardRoute("/orders", {
+              dashboard: "sales-today",
+              date_from: today,
+              date_to: today,
+              committed_only: "true",
+              warehouse_id: warehouseId || undefined,
+            })
+          : undefined,
       },
       data.active_products && {
         label: "Active products",
@@ -102,6 +141,9 @@ export function DashboardPage() {
         helper: `${data.products_awaiting_verification ?? 0} awaiting verification`,
         metric: data.active_products,
         icon: PackageCheck,
+        to: canViewProducts
+          ? dashboardRoute("/products", { dashboard: "active-products", is_active: "true" })
+          : undefined,
       },
       data.verified_customers && {
         label: "Verified customers",
@@ -109,6 +151,12 @@ export function DashboardPage() {
         helper: `${data.customers_under_review ?? 0} under review`,
         metric: data.verified_customers,
         icon: Store,
+        to: canViewCustomers
+          ? dashboardRoute("/customers", {
+              dashboard: "verified-customers",
+              status: "VERIFIED",
+            })
+          : undefined,
       },
       data.low_stock_skus && {
         label: "Low-stock SKUs",
@@ -117,6 +165,13 @@ export function DashboardPage() {
         metric: data.low_stock_skus,
         icon: Boxes,
         warning: true,
+        to: canViewInventory
+          ? dashboardRoute("/inventory", {
+              dashboard: "low-stock",
+              stock: "low",
+              warehouse_id: warehouseId || undefined,
+            })
+          : undefined,
       },
       data.expiring_soon && {
         label: "Expiring soon",
@@ -125,6 +180,13 @@ export function DashboardPage() {
         metric: data.expiring_soon,
         icon: CalendarClock,
         warning: true,
+        to: canViewInventory
+          ? dashboardRoute("/inventory", {
+              dashboard: "expiring-soon",
+              expiring_only: "true",
+              warehouse_id: warehouseId || undefined,
+            })
+          : undefined,
       },
       data.outstanding_receivables && {
         label: "Receivables",
@@ -135,7 +197,15 @@ export function DashboardPage() {
         warning: true,
       },
     ].filter(Boolean) as Kpi[];
-  }, [data]);
+  }, [
+    canViewCustomers,
+    canViewInventory,
+    canViewOrders,
+    canViewProducts,
+    data,
+    today,
+    warehouseId,
+  ]);
   const pulse = useMemo(
     () =>
       (data?.sales_pulse ?? []).map((point) => ({
@@ -154,9 +224,10 @@ export function DashboardPage() {
   );
 
   if (dashboard.isPending) return <LoadingState label="Loading live operations…" />;
-  if (dashboard.isError || !data) {
+  if ((dashboard.isError && dashboard.data === undefined) || !data) {
     return (
       <ErrorState
+        error={dashboard.error}
         title="The operations overview could not be loaded"
         onRetry={() => dashboard.refetch()}
       />
@@ -182,6 +253,19 @@ export function DashboardPage() {
           <p>A clear view of the work that keeps better care moving.</p>
         </div>
         <div className="ops-overview-actions">
+          <Button
+            variant="secondary"
+            disabled={dashboard.isFetching}
+            onClick={() => void dashboard.refetch()}
+          >
+            <RefreshCw
+              className={
+                dashboard.isFetching && !prefersReducedMotion ? "animate-spin" : ""
+              }
+              aria-hidden="true"
+            />
+            {dashboard.isFetching ? "Refreshing…" : "Refresh overview"}
+          </Button>
           {canExportReports && (
             <Button
               variant="secondary"
@@ -208,6 +292,18 @@ export function DashboardPage() {
         <span>
           <strong>Business overview</strong> <span aria-hidden="true"> / </span> Current
           operational data
+          <span className="ops-live-status" role="status">
+            <span
+              className={`ops-live-dot ${dashboard.isError ? "is-stale" : ""}`}
+              aria-hidden="true"
+            />
+            {dashboard.isFetching
+              ? "Updating…"
+              : dashboard.isError
+                ? "Showing last update"
+                : `Updated ${new Intl.DateTimeFormat("en-TZ", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dar_es_Salaam" }).format(new Date(data.generated_at))} EAT`}
+          </span>
+          <span className="text-xs">Refreshes every minute</span>
         </span>
         {canViewInventory && (
           <label>
@@ -229,46 +325,10 @@ export function DashboardPage() {
       </div>
       <section aria-label="Key performance indicators" className="ops-metric-grid">
         {kpis
-          .filter((k) => !k.warning)
-          .map((item, index) => {
-            const delta = item.metric.delta_percent;
-            const DeltaIcon =
-              delta === null ? Minus : delta >= 0 ? ArrowUpRight : ArrowDownRight;
-            return (
-              <motion.article
-                key={item.label}
-                className="ops-metric"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: prefersReducedMotion ? 0 : 0.3,
-                  delay: prefersReducedMotion ? 0 : index * 0.045,
-                  ease: [0.2, 0, 0, 1],
-                }}
-              >
-                <div className="ops-metric-heading">
-                  <span>{item.label}</span>
-                  <span className="ops-metric-icon">
-                    <item.icon size={16} />
-                  </span>
-                </div>
-                <p className="ops-metric-value">{item.value}</p>
-                <div className="ops-metric-footer">
-                  <span
-                    className={cn(
-                      "ops-metric-delta",
-                      delta !== null && delta < 0 && "text-secondary",
-                    )}
-                  >
-                    <DeltaIcon size={12} />
-                    {delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta}%`}
-                  </span>
-                  <span>{item.metric.comparison}</span>
-                </div>
-                <p className="ops-metric-helper">{item.helper}</p>
-              </motion.article>
-            );
-          })}
+          .filter((item) => item.to)
+          .map((item, index) => (
+            <MetricCard key={item.label} {...item} to={item.to!} index={index} />
+          ))}
       </section>
       <div className="ops-overview-main">
         {canViewOrders && (
@@ -345,7 +405,10 @@ export function DashboardPage() {
           </p>
           <div className="ops-action-list">
             {canViewOrders && (
-              <Link className="ops-action-link" to="/orders">
+              <Link
+                className="ops-action-link"
+                to="/orders?dashboard=orders-review&order_status=PENDING"
+              >
                 <ClipboardList />
                 <span>
                   Review orders<small>Confirm and prepare for fulfilment</small>
@@ -355,7 +418,10 @@ export function DashboardPage() {
               </Link>
             )}
             {canViewCustomers && (
-              <Link className="ops-action-link" to="/customers">
+              <Link
+                className="ops-action-link"
+                to="/customers?dashboard=customers-review&status=UNDER_REVIEW"
+              >
                 <Store />
                 <span>
                   Verify businesses<small>Review customer applications</small>
@@ -365,7 +431,10 @@ export function DashboardPage() {
               </Link>
             )}
             {canViewProducts && (
-              <Link className="ops-action-link" to="/products">
+              <Link
+                className="ops-action-link"
+                to="/products?dashboard=products-review&verification_status=UNVERIFIED"
+              >
                 <PackageCheck />
                 <span>
                   Approve products<small>Check catalog readiness</small>
@@ -379,7 +448,7 @@ export function DashboardPage() {
       </div>
       <section className="ops-risk-strip" aria-label="Inventory and balance overview">
         {kpis
-          .filter((k) => k.warning)
+          .filter((k) => !k.to)
           .map((item) => (
             <div className="ops-risk-item" key={item.label}>
               <item.icon />

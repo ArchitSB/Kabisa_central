@@ -1,12 +1,17 @@
 import {
   createApiClient,
+  ApiError,
   type Tokens,
   type StoreHome,
 } from "@kabisa/api-client";
 import { QueryClient } from "@tanstack/react-query";
 export const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      staleTime: 30_000,
+      retry: (count, error) => !(error instanceof ApiError) && count < 1,
+      refetchOnWindowFocus: false,
+    },
   },
 });
 const base = import.meta.env.VITE_STORE_API_URL || "/api/v1/store";
@@ -23,12 +28,16 @@ export const tokenStore = {
   set(value: Tokens | null) {
     if (value)
       sessionStorage.setItem("kabisa.store.session", JSON.stringify(value));
-    else sessionStorage.removeItem("kabisa.store.session");
+    else {
+      sessionStorage.removeItem("kabisa.store.session");
+      queryClient.clear();
+    }
     window.dispatchEvent(new Event("kabisa-session"));
   },
 };
 export const api = createApiClient({
   baseUrl: base,
+  timeoutMs: Number(import.meta.env.VITE_API_TIMEOUT_MS),
   fetch: (url, options) => fetch(url, options),
   tokens: tokenStore,
 });

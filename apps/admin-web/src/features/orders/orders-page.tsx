@@ -6,11 +6,13 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { Download, Plus, RotateCcw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DashboardDrilldownNotice } from "@/components/ui/dashboard-drilldown-notice";
 import { DataTable } from "@/components/ui/data-table";
 import { FilterBar, FilterField, SearchInput } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
@@ -50,12 +52,19 @@ const statusTabs: StatusFilter[] = [
 ];
 
 export function OrdersPage() {
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("ALL");
-  const [payment, setPayment] = useState<"" | PaymentStatus>("");
-  const [warehouse, setWarehouse] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const dashboardView = searchParams.get("dashboard") || "";
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [status, setStatus] = useState<StatusFilter>(
+    () => (searchParams.get("order_status") as StatusFilter) || "ALL",
+  );
+  const [payment, setPayment] = useState<"" | PaymentStatus>(
+    () => (searchParams.get("payment_status") as PaymentStatus) || "",
+  );
+  const [warehouse, setWarehouse] = useState(() => searchParams.get("warehouse_id") || "");
+  const [fromDate, setFromDate] = useState(() => searchParams.get("date_from") || "");
+  const [toDate, setToDate] = useState(() => searchParams.get("date_to") || "");
   const [selected, setSelected] = useState<OrderSummary[]>([]);
   const [deleting, setDeleting] = useState<OrderSummary | null>(null);
   const deferredSearch = useDebouncedValue(search.trim());
@@ -74,6 +83,7 @@ export function OrdersPage() {
     warehouse_id: warehouse || undefined,
     date_from: fromDate || undefined,
     date_to: toDate || undefined,
+    committed_only: searchParams.get("committed_only") === "true" || undefined,
   };
   const orders = useQuery({
     queryKey: ["orders", filters],
@@ -85,7 +95,7 @@ export function OrdersPage() {
     queryFn: getCatalogSettings,
   });
   const warehouses = useQuery({
-    queryKey: ["warehouses", "order-filter"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
   });
   const agents = useQuery({
@@ -173,9 +183,13 @@ export function OrdersPage() {
   }
 
   if (orders.isPending) return <LoadingState label="Loading orders…" />;
-  if (orders.isError || !orders.data) {
+  if ((orders.isError && orders.data === undefined) || !orders.data) {
     return (
-      <ErrorState title="Orders could not be loaded" onRetry={() => orders.refetch()} />
+      <ErrorState
+        error={orders.error}
+        title="Orders could not be loaded"
+        onRetry={() => orders.refetch()}
+      />
     );
   }
   return (
@@ -205,6 +219,25 @@ export function OrdersPage() {
           </>
         }
       />
+      {dashboardView === "orders-today" ? (
+        <DashboardDrilldownNotice
+          title="Orders created today"
+          description="This list uses Tanzania business-day dates and the selected warehouse."
+          onClear={() => navigate("/orders")}
+        />
+      ) : dashboardView === "sales-today" ? (
+        <DashboardDrilldownNotice
+          title="Today’s committed sales"
+          description="Only approved, pending-delivery and delivered orders created today are shown."
+          onClear={() => navigate("/orders")}
+        />
+      ) : dashboardView === "orders-review" ? (
+        <DashboardDrilldownNotice
+          title="Orders awaiting review"
+          description="Pending orders need confirmation before fulfilment can begin."
+          onClear={() => navigate("/orders")}
+        />
+      ) : null}
 
       <div className="scrollbar-subtle -mx-1 overflow-x-auto px-1">
         <div className="flex min-w-max items-center gap-1 rounded-control border border-border bg-surface p-1.5">

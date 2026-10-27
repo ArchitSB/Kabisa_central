@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import axios from "axios";
+import { queryClient } from "@/lib/query-client";
 
 import { authClient } from "@/features/auth/auth-client";
 import type {
@@ -9,7 +11,26 @@ import type {
   RoleWithPermissions,
 } from "@/features/auth/types";
 
-type AuthStatus = "checking" | "authenticated" | "anonymous";
+type AuthStatus = "checking" | "authenticated" | "anonymous" | "unavailable";
+
+function cachedUser(): AuthUser | null {
+  try {
+    return JSON.parse(
+      sessionStorage.getItem("kabisa-admin-user") ?? "null",
+    ) as AuthUser | null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberUser(user: AuthUser | null) {
+  try {
+    if (user) sessionStorage.setItem("kabisa-admin-user", JSON.stringify(user));
+    else sessionStorage.removeItem("kabisa-admin-user");
+  } catch {
+    /* Storage can be disabled; session restore still works. */
+  }
+}
 
 type AuthState = {
   accessToken: string | null;
@@ -17,6 +38,8 @@ type AuthState = {
   user: AuthUser | null;
   previewRole: RoleWithPermissions | null;
   status: AuthStatus;
+  restoreError: unknown;
+  sessionExpired: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   bootstrap: () => Promise<void>;
@@ -34,9 +57,11 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       accessToken: null,
       refreshToken: null,
-      user: null,
+      user: cachedUser(),
       previewRole: null,
       status: "checking",
+      restoreError: null,
+      sessionExpired: false,
 
       login: async (email, password) => {
         const response = await authClient.post<LoginResponse>("/auth/login", {
@@ -49,7 +74,9 @@ export const useAuthStore = create<AuthState>()(
           user: response.data.user,
           previewRole: null,
           status: "authenticated",
+          sessionExpired: false,
         });
+        rememberUser(response.data.user);
         return response.data.user;
       },
 
@@ -65,58 +92,71 @@ export const useAuthStore = create<AuthState>()(
           }
         } finally {
           get().clearSession();
+          set({ sessionExpired: false });
         }
       },
 
       bootstrap: async () => {
+        if (get().status === "authenticated") return;
         if (bootstrapPromise) {
           return bootstrapPromise;
         }
         bootstrapPromise = (async () => {
+          set({ status: "checking", restoreError: null });
           const { accessToken, refreshToken } = get();
           if (!accessToken && !refreshToken) {
+            rememberUser(null);
             set({ status: "anonymous", user: null });
             return;
           }
 
-          let currentAccessToken = accessToken;
-          if (!currentAccessToken) {
-            currentAccessToken = await refreshAccessToken();
-          }
-          if (!currentAccessToken) {
-            get().clearSession();
-            return;
-          }
-
           try {
-            const response = await authClient.get<AuthUser>("/auth/me", {
-              headers: {
-                Authorization: `Bearer ${currentAccessToken}`,
-              },
-            });
-            set({
-              user: response.data,
-              status: "authenticated",
-            });
-          } catch {
-            const refreshedToken = await refreshAccessToken();
-            if (!refreshedToken) {
+            let currentAccessToken = accessToken;
+            if (!currentAccessToken) {
+              currentAccessToken = await refreshAccessToken();
+            }
+            if (!currentAccessToken) {
               get().clearSession();
               return;
             }
+
             try {
               const response = await authClient.get<AuthUser>("/auth/me", {
                 headers: {
-                  Authorization: `Bearer ${refreshedToken}`,
+                  Authorization: `Bearer ${currentAccessToken}`,
                 },
               });
               set({
                 user: response.data,
                 status: "authenticated",
               });
-            } catch {
-              get().clearSession();
+              rememberUser(response.data);
+            } catch (error) {
+              if (!axios.isAxiosError(error) || error.response?.status !== 401) throw error;
+              const refreshedToken = await refreshAccessToken();
+              if (!refreshedToken) {
+                get().clearSession();
+                return;
+              }
+              try {
+                const response = await authClient.get<AuthUser>("/auth/me", {
+                  headers: {
+                    Authorization: `Bearer ${refreshedToken}`,
+                  },
+                });
+                set({
+                  user: response.data,
+                  status: "authenticated",
+                });
+                rememberUser(response.data);
+              } catch (error) {
+                if (axios.isAxiosError(error) && error.response?.status === 401)
+                  get().clearSession();
+                else throw error;
+              }
             }
+          } catch (error) {
+            set({ status: "unavailable", restoreError: error });
           }
         })().finally(() => {
           bootstrapPromise = null;
@@ -127,14 +167,19 @@ export const useAuthStore = create<AuthState>()(
       setAccessToken: (accessToken) => set({ accessToken }),
       setPreviewRole: (previewRole) => set({ previewRole }),
 
-      clearSession: () =>
+      clearSession: () => {
+        queryClient.clear();
+        rememberUser(null);
         set({
           accessToken: null,
           refreshToken: null,
           user: null,
           previewRole: null,
           status: "anonymous",
-        }),
+          sessionExpired: true,
+          restoreError: null,
+        });
+      },
 
       hasPermission: (code) => {
         const { previewRole, user } = get();
@@ -178,9 +223,12 @@ export function refreshAccessToken(): Promise<string | null> {
       });
       useAuthStore.getState().setAccessToken(response.data.access_token);
       return response.data.access_token;
-    } catch {
-      useAuthStore.getState().clearSession();
-      return null;
+    } catch (error) {
+      if (axios.isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0)) {
+        useAuthStore.getState().clearSession();
+        return null;
+      }
+      throw error;
     }
   })().finally(() => {
     refreshPromise = null;

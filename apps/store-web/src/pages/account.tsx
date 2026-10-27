@@ -57,7 +57,7 @@ const tabs = [
 ];
 export default function Account() {
   const { section = "" } = useParams();
-  const { customer, loading, logout, config, refresh } = useStore();
+  const { customer, loading, logout, config, refresh, error } = useStore();
   const navigate = useNavigate();
   useSeo(
     t(`account.${tabs.find((tab) => tab.id === section)?.key || "overview"}`),
@@ -71,7 +71,7 @@ export default function Account() {
   if (!customer)
     return (
       <div className="container">
-        <ErrorState retry={() => refresh()} />
+        <ErrorState error={error} retry={() => refresh()} />
       </div>
     );
   const business = customer.customer;
@@ -463,7 +463,8 @@ function Addresses() {
     queryFn: () => api.get<Page<Address>>("/addresses"),
   });
   if (query.isLoading) return <Skeleton cards={2} />;
-  if (query.isError) return <ErrorState error={query.error} />;
+  if (query.isError && query.data === undefined)
+    return <ErrorState error={query.error} retry={() => query.refetch()} />;
   return (
     <>
       <div className="section-heading">
@@ -539,8 +540,8 @@ function Favourites() {
   });
   return query.isLoading ? (
     <Skeleton cards={3} />
-  ) : query.isError ? (
-    <ErrorState error={query.error} />
+  ) : query.isError && query.data === undefined ? (
+    <ErrorState error={query.error} retry={() => query.refetch()} />
   ) : query.data?.items.length ? (
     <div className="product-grid account-products">
       {query.data.items.map((p) => (
@@ -584,8 +585,8 @@ function Templates() {
   });
   return query.isLoading ? (
     <Skeleton cards={2} />
-  ) : query.isError ? (
-    <ErrorState error={query.error} />
+  ) : query.isError && query.data === undefined ? (
+    <ErrorState error={query.error} retry={() => query.refetch()} />
   ) : query.data?.items.length ? (
     <div className="template-list">
       {query.data.items.map((item) => (
@@ -644,8 +645,8 @@ function Notifications() {
   });
   return query.isLoading ? (
     <Skeleton cards={2} />
-  ) : query.isError ? (
-    <ErrorState error={query.error} />
+  ) : query.isError && query.data === undefined ? (
+    <ErrorState error={query.error} retry={() => query.refetch()} />
   ) : query.data?.items.length ? (
     <div className="notification-list">
       {query.data.items.map((item) => (
@@ -778,8 +779,8 @@ function Security() {
             {t("account.signOutAll")}
           </AsyncButton>
         </div>
-        {sessions.isError ? (
-          <ErrorState error={sessions.error} />
+        {sessions.isError && sessions.data === undefined ? (
+          <ErrorState error={sessions.error} retry={() => sessions.refetch()} />
         ) : (
           sessions.data?.items.map((session) => (
             <div className="session-row" key={session.id}>

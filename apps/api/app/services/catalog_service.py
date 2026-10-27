@@ -65,6 +65,7 @@ from app.services.inventory_service import (
     runtime_settings,
     stock_status,
 )
+from app.services.read_queries import counted_page, product_on_hand, stock_filter
 
 
 async def _unique_slug(
@@ -161,15 +162,13 @@ async def list_warehouses(
         },
         default_field="name",
     )
-    total = await session.scalar(select(func.count()).select_from(Warehouse).where(*filters))
     statement = (
         select(Warehouse)
         .where(*filters)
         .order_by(Warehouse.is_primary.desc(), order_by, Warehouse.id.asc())
     )
-    if page_size is not None:
-        statement = statement.offset((page - 1) * page_size).limit(page_size)
-    items = (await session.scalars(statement)).all()
+    rows, total = await counted_page(session, statement, page=page, page_size=page_size)
+    items = [row[0] for row in rows]
     return WarehouseListResponse(
         items=[WarehouseRead.model_validate(item) for item in items],
         total=total or 0,
@@ -668,7 +667,10 @@ def product_load_options():
     return (
         selectinload(Product.images),
         selectinload(Product.prices),
-        selectinload(Product.batches),
+        # The batch's joined parent points back to this same Product. With
+        # populate_existing it can expire collections loaded above, causing
+        # both GET detail and PATCH's response serialization to raise.
+        selectinload(Product.batches).raiseload(ProductBatch.product),
     )
 
 
@@ -705,6 +707,7 @@ async def _serialize_product(
     *,
     detail: bool,
     settings_values: dict[str, str] | None = None,
+    stock_summary: tuple[int, str | None] | None = None,
 ) -> ProductRead | ProductDetailRead:
     values = settings_values or await runtime_settings(session)
     today = date.today()
@@ -715,18 +718,26 @@ async def _serialize_product(
         else int(values["low_stock_default"])
     )
     batches = sorted(
-        (batch for batch in product.batches if batch.deleted_at is None),
+        (
+            batch
+            for batch in (product.batches if stock_summary is None else [])
+            if batch.deleted_at is None
+        ),
         key=lambda item: item.expiry_date,
     )
     on_hand, by_warehouse = calculate_product_stock(batches, today=today)
     primary_image = next(
         (
             image.file_path
-            for image in sorted(product.images, key=lambda item: item.sort_order)
+            for image in sorted(
+                product.images if stock_summary is None else [], key=lambda item: item.sort_order
+            )
             if image.is_primary
         ),
         None,
     )
+    if stock_summary is not None:
+        on_hand, primary_image = stock_summary
     base = dict(
         id=product.id,
         name=product.name,
@@ -857,43 +868,53 @@ async def list_products(
         },
         default_field="name",
     )
-    products = (
-        (
-            await session.scalars(
-                select(Product)
-                .where(*filters)
-                .options(*product_load_options())
-                .order_by(order_by, Product.id.asc())
-            )
-        )
-        .unique()
-        .all()
-    )
-    serialized: list[ProductRead] = []
     settings_values = await runtime_settings(session)
-    for product in products:
-        if warehouse_id is not None and not any(
-            batch.warehouse_id == warehouse_id and batch.deleted_at is None
-            for batch in product.batches
-        ):
-            continue
-        item = await _serialize_product(
+    on_hand = product_on_hand(date.today())
+    threshold = func.coalesce(
+        Product.low_stock_threshold, int(settings_values["low_stock_default"])
+    )
+    if stock:
+        filters.append(stock_filter(on_hand, threshold, stock))
+    if warehouse_id is not None:
+        # Preserve the existing catalog contract: warehouse filters membership;
+        # catalog availability remains the total across warehouses.
+        filters.append(
+            select(ProductBatch.id)
+            .where(
+                ProductBatch.product_id == Product.id,
+                ProductBatch.warehouse_id == warehouse_id,
+                ProductBatch.deleted_at.is_(None),
+            )
+            .exists()
+        )
+    primary_image = (
+        select(ProductImage.file_path)
+        .where(ProductImage.product_id == Product.id, ProductImage.is_primary.is_(True))
+        .order_by(ProductImage.sort_order)
+        .limit(1)
+        .correlate(Product)
+        .scalar_subquery()
+    )
+    rows, total = await counted_page(
+        session,
+        select(Product, on_hand, primary_image)
+        .where(*filters)
+        .order_by(order_by, Product.id.asc()),
+        page=page,
+        page_size=page_size,
+    )
+    items = [
+        await _serialize_product(
             session,
             product,
             detail=False,
             settings_values=settings_values,
+            stock_summary=(quantity, image),
         )
-        assert isinstance(item, ProductRead)
-        if stock and item.stock_status != stock:
-            continue
-        serialized.append(item)
-    total = len(serialized)
-    start = (page - 1) * page_size if page_size is not None else 0
+        for product, quantity, image in rows
+    ]
     return ProductListResponse(
-        items=(serialized[start : start + page_size] if page_size is not None else serialized),
-        total=total,
-        page=page,
-        page_size=page_size if page_size is not None else total,
+        items=items, total=total, page=page, page_size=page_size if page_size is not None else total
     )
 
 

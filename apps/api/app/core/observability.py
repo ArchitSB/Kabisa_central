@@ -21,6 +21,8 @@ class JsonFormatter(logging.Formatter):
             "path",
             "status_code",
             "latency_ms",
+            "db_queries",
+            "db_time_ms",
             "client_ip",
         ):
             value = getattr(record, key, None)

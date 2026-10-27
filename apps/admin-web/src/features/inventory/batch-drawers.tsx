@@ -74,7 +74,7 @@ export function InboundBatchDrawer({
     enabled: open,
   });
   const warehouses = useQuery({
-    queryKey: ["warehouses", "batch-options"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
     enabled: open,
   });

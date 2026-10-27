@@ -224,10 +224,16 @@ export const router = createBrowserRouter([
           },
           {
             element: <PermissionGuard permission="storefront.view" />,
-            children: [{ path: "/storefront/:kind?", lazy: async () => {
-              const { StorefrontPage } = await import("@/features/storefront/storefront-page");
-              return { Component: StorefrontPage };
-            }}],
+            children: [
+              {
+                path: "/storefront/:kind?",
+                lazy: async () => {
+                  const { StorefrontPage } =
+                    await import("@/features/storefront/storefront-page");
+                  return { Component: StorefrontPage };
+                },
+              },
+            ],
           },
           ...permissionRoutes.map(([path, permission]) => ({
             element: <PermissionGuard permission={permission} />,

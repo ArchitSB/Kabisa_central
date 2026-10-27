@@ -90,10 +90,10 @@ export default function ProductDetail() {
         <Skeleton cards={2} />
       </div>
     );
-  if (query.isError || !p)
+  if ((query.isError && query.data === undefined) || !p)
     return (
       <div className="container">
-        <ErrorState error={query.error} />
+        <ErrorState error={query.error} retry={() => query.refetch()} />
       </div>
     );
   return (

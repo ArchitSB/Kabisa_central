@@ -1,0 +1,104 @@
+const { createRequire } = require('node:module');
+const path = require('node:path');
+const root = process.cwd();
+const requireVite = createRequire(require.resolve(path.join(root, 'apps/admin-web/node_modules/vite/package.json')));
+const esbuild = requireVite('esbuild');
+const source = `
+const assert = require('node:assert/strict');
+const storage = new Map();
+global.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
+global.sessionStorage = global.localStorage;
+global.window = { localStorage: global.localStorage, location: { pathname: '/', search: '', assign() {} } };
+const axios = require('axios').default;
+const { AxiosError } = require('axios');
+const { apiClient } = require('./src/lib/api-client');
+const { authClient } = require('./src/features/auth/auth-client');
+const { useAuthStore, refreshAccessToken } = require('./src/features/auth/auth-store');
+const { queryClient } = require('./src/lib/query-client');
+const { describeApiFailure } = require('./src/lib/api-errors');
+const { installReadRetry } = require('./src/lib/http-policy');
+const reply = (config, data) => ({ config, data, status: 200, statusText: 'OK', headers: {} });
+const unauthorized = config => new AxiosError('expired', 'ERR_BAD_REQUEST', config, null, { config, status: 401, headers: {}, data: {} });
+(async () => {
+  assert.equal(apiClient.defaults.timeout, 60000);
+  assert.equal(authClient.defaults.timeout, 60000);
+  const reads = axios.create(); installReadRetry(reads);
+  let calls = 0;
+  reads.defaults.adapter = async config => { calls++; throw new AxiosError('timeout', 'ECONNABORTED', config); };
+  await assert.rejects(reads.get('/mock'));
+  assert.equal(calls, 2);
+  calls = 0;
+  await assert.rejects(reads.post('/mock', {}));
+  assert.equal(calls, 1);
+  reads.defaults.adapter = async config => { assert.equal(config.timeout, 30000); return reply(config, {}); };
+  await reads.get('/override', { timeout: 30000 });
+
+  useAuthStore.setState({ accessToken: 'old', refreshToken: 'refresh', status: 'checking' });
+  let meCalls = 0;
+  authClient.defaults.adapter = async config => { assert.equal(config.method, 'get'); meCalls++; throw new AxiosError('network', 'ERR_NETWORK', config); };
+  await Promise.all([useAuthStore.getState().bootstrap(), useAuthStore.getState().bootstrap()]);
+  assert.equal(meCalls, 2);
+  assert.equal(useAuthStore.getState().status, 'unavailable');
+  assert.equal(useAuthStore.getState().accessToken, 'old');
+  authClient.defaults.adapter = async config => { meCalls++; return reply(config, { name: 'Offline', role: { id: 'role', name: 'staff' }, permissions: [] }); };
+  await useAuthStore.getState().bootstrap();
+  assert.equal(meCalls, 3);
+  assert.equal(useAuthStore.getState().status, 'authenticated');
+
+  let rotations = 0;
+  authClient.defaults.adapter = async config => { rotations++; await new Promise(resolve => setTimeout(resolve, 5)); return reply(config, { access_token: 'new' }); };
+  apiClient.defaults.adapter = async config => {
+    if (config.headers.Authorization === 'Bearer old') throw unauthorized(config);
+    return reply(config, {});
+  };
+  await Promise.all([apiClient.get('/a'), apiClient.get('/b')]);
+  assert.equal(rotations, 1);
+
+  authClient.defaults.adapter = async config => { throw unauthorized(config); };
+  assert.equal(await refreshAccessToken(), null);
+  assert.equal(useAuthStore.getState().status, 'anonymous');
+  assert.equal(useAuthStore.getState().sessionExpired, true);
+  for (const status of [401, 403, 500, 503]) {
+    const error = new AxiosError('failed', undefined, { method: 'get' }, null, { status, headers: { 'x-request-id': 'mock-id' } });
+    const failure = describeApiFailure(error);
+    assert.equal(failure.status, status); assert.equal(failure.requestId, 'mock-id');
+  }
+  const error = new AxiosError('timeout', 'ECONNABORTED', { method: 'get' });
+  assert.equal(queryClient.getDefaultOptions().queries.retry(0, error), false);
+  assert.match(describeApiFailure(error).message, /too long/);
+  assert.match(describeApiFailure(new AxiosError('offline', 'ERR_NETWORK', { method: 'get' })).message, /cannot be reached/);
+  const { QueryClient, QueryObserver } = require('@tanstack/react-query');
+  const staleClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let unavailable = false;
+  const observer = new QueryObserver(staleClient, { queryKey: ['rows'], queryFn: async () => {
+    if (unavailable) throw new Error('simulated outage');
+    return [{ id: 'retained-row' }];
+  } });
+  const unsubscribe = observer.subscribe(() => {});
+  await observer.refetch();
+  unavailable = true;
+  await observer.refetch();
+  const stale = observer.getCurrentResult();
+  assert.equal(stale.isError, true);
+  assert.equal(stale.data[0].id, 'retained-row');
+  assert.equal(stale.isError && stale.data === undefined, false);
+  assert.equal(staleClient.getQueryCache().getAll().filter(q => q.isActive() && q.state.data !== undefined && q.state.status === 'error').length, 1);
+  unavailable = false;
+  await staleClient.refetchQueries({ queryKey: ['rows'] });
+  assert.equal(observer.getCurrentResult().isError, false);
+  unsubscribe(); staleClient.clear();
+  const dashboardKey = ['dashboard-summary', 'mutation-regression'];
+  queryClient.setQueryData(dashboardKey, { orders_today: { value: 1 } });
+  assert.equal(queryClient.getQueryState(dashboardKey).isInvalidated, false);
+  await queryClient.getMutationCache().build(queryClient, { gcTime: 0, mutationFn: async () => ({ saved: true }) }).execute();
+  assert.equal(queryClient.getQueryState(dashboardKey).isInvalidated, true);
+  queryClient.setQueryData(dashboardKey, { orders_today: { value: 1 } });
+  await assert.rejects(queryClient.getMutationCache().build(queryClient, { gcTime: 0, mutationFn: async () => { throw new Error('rejected edit'); } }).execute());
+  assert.equal(queryClient.getQueryState(dashboardKey).isInvalidated, false);
+  queryClient.clear();
+  console.log('PASS: successful edits invalidate dashboard totals; failed edits do not.');
+  console.log('PASS: admin timeout override, one GET retry, no transient write retry, preserved request override, single-flight restore/refresh, transient session preservation, expired-session handling, error metadata, no nested query retries. Mock adapters only.');
+})().catch(error => { console.error(error); process.exitCode = 1; });
+`;
+esbuild.buildSync({ stdin: { contents: source, resolveDir: path.join(root, 'apps/admin-web'), loader: 'ts' }, bundle: true, platform: 'node', format: 'cjs', outfile: '/tmp/kabisa-admin-policy-bundle.cjs', alias: { '@': path.join(root, 'apps/admin-web/src') }, define: { 'import.meta.env': JSON.stringify({ VITE_API_TIMEOUT_MS: '60000', DEV: true }) } });
+require('/tmp/kabisa-admin-policy-bundle.cjs');

@@ -41,7 +41,7 @@ export function WarehousesPage() {
   const canExport = useHasPermission("reports.export");
   const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: ["warehouses", deferredSearch],
+    queryKey: ["warehouses", "list", deferredSearch],
     queryFn: () => listWarehouses(deferredSearch),
     placeholderData: keepPreviousData,
   });
@@ -298,8 +298,9 @@ export function WarehousesPage() {
       ) : null}
       {query.isPending ? (
         <LoadingState label="Loading warehouses…" />
-      ) : query.isError ? (
+      ) : query.isError && query.data === undefined ? (
         <ErrorState
+          error={query.error}
           title="Warehouses could not be loaded"
           onRetry={() => query.refetch()}
         />

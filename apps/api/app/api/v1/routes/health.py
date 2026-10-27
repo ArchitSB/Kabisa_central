@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, status
@@ -22,8 +23,9 @@ async def readiness(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ReadinessResponse:
     try:
-        await session.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
+        async with asyncio.timeout(3):
+            await session.execute(text("SELECT 1"))
+    except (SQLAlchemyError, TimeoutError, OSError) as exc:
         raise AppError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The database is not ready.",

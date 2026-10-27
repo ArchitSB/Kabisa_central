@@ -48,7 +48,7 @@ function Protected() {
   );
 }
 function Approved() {
-  const { authenticated, customer, loading, refresh } = useStore();
+  const { authenticated, customer, loading, refresh, error } = useStore();
   const location = useLocation();
   if (!authenticated)
     return (
@@ -66,7 +66,7 @@ function Approved() {
   if (!customer)
     return (
       <div className="container section">
-        <ErrorState retry={() => refresh()} />
+        <ErrorState error={error} retry={() => refresh()} />
       </div>
     );
   if (customer.customer.status !== "VERIFIED")

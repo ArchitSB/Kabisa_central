@@ -1,11 +1,12 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import status
 from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.errors import AppError
 from app.models import (
@@ -38,6 +39,16 @@ from app.schemas.order import (
 )
 from app.services import coupon_service, inventory_service, pricing_service
 from app.services.common import sort_expression
+from app.services.read_queries import counted_page
+from app.services.reporting_service import COMMITTED_SALES_STATUSES
+
+BUSINESS_TIMEZONE = ZoneInfo("Africa/Dar_es_Salaam")
+
+
+def business_day_bounds(day: date) -> tuple[datetime, datetime]:
+    """Return the UTC instants containing one business day in Tanzania."""
+    start = datetime.combine(day, time.min, tzinfo=BUSINESS_TIMEZONE).astimezone(UTC)
+    return start, start + timedelta(days=1)
 
 
 def order_load_options():
@@ -539,6 +550,7 @@ async def list_orders(
     warehouse_id: UUID | None,
     date_from: date | None,
     date_to: date | None,
+    committed_only: bool = False,
 ) -> OrderListResponse:
     filters = [Order.deleted_at.is_(None)]
     if order_status:
@@ -550,16 +562,19 @@ async def list_orders(
     if warehouse_id:
         filters.append(Order.warehouse_id == warehouse_id)
     if date_from:
-        filters.append(func.date(Order.created_at) >= date_from)
+        start, _ = business_day_bounds(date_from)
+        filters.append(Order.created_at >= start)
     if date_to:
-        filters.append(func.date(Order.created_at) <= date_to)
+        _, end = business_day_bounds(date_to)
+        filters.append(Order.created_at < end)
+    if committed_only:
+        filters.append(Order.status.in_(COMMITTED_SALES_STATUSES))
     if search:
         pattern = f"%{search.strip()}%"
         filters.append(
             or_(Order.order_number.ilike(pattern), Customer.business_name.ilike(pattern))
         )
     base = select(Order).join(Customer, Customer.id == Order.customer_id).where(*filters)
-    total = await session.scalar(select(func.count()).select_from(base.subquery()))
     ordering = sort_expression(
         sort,
         {
@@ -571,10 +586,11 @@ async def list_orders(
         default_field="created_at",
         default_direction="desc",
     )
-    statement = base.options(selectinload(Order.items)).order_by(ordering, Order.id.desc())
-    if page_size is not None:
-        statement = statement.offset((page - 1) * page_size).limit(page_size)
-    orders = (await session.scalars(statement)).unique().all()
+    statement = base.options(
+        joinedload(Order.items).load_only(OrderItem.quantity).raiseload("*")
+    ).order_by(ordering, Order.id.desc())
+    rows, total = await counted_page(session, statement, page=page, page_size=page_size)
+    orders = [row[0] for row in rows]
     count_rows = await session.execute(
         select(Order.status, func.count(Order.id))
         .where(Order.deleted_at.is_(None))

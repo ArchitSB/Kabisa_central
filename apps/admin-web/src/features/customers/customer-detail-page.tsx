@@ -234,9 +234,13 @@ export function CustomerDetailPage() {
   });
 
   if (customer.isPending) return <LoadingState label="Loading customer workspace…" />;
-  if (customer.isError || !customer.data) {
+  if ((customer.isError && customer.data === undefined) || !customer.data) {
     return (
-      <ErrorState title="Customer could not be loaded" onRetry={() => customer.refetch()} />
+      <ErrorState
+        error={customer.error}
+        title="Customer could not be loaded"
+        onRetry={() => customer.refetch()}
+      />
     );
   }
   const item = customer.data;

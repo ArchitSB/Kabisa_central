@@ -51,7 +51,7 @@ export function ProductLinkedSections({
   const queryClient = useQueryClient();
   const tiers = useQuery({ queryKey: ["price-tiers"], queryFn: listPriceTiers });
   const warehouses = useQuery({
-    queryKey: ["warehouses", "options"],
+    queryKey: ["warehouses", "list", ""],
     queryFn: () => listWarehouses(),
   });
   const refresh = () =>

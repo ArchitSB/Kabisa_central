@@ -1,6 +1,6 @@
+import { ErrorState } from "@/components/ui/resource-state";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertCircle,
   ChevronDown,
   KeyRound,
   LoaderCircle,
@@ -57,17 +57,12 @@ export function RolesPage() {
           />
           <span className="ml-3 text-sm font-medium text-secondary">Loading roles…</span>
         </div>
-      ) : query.isError ? (
-        <div className="surface-card flex min-h-64 flex-col items-center justify-center px-6 text-center">
-          <AlertCircle aria-hidden="true" className="size-7 text-danger" />
-          <p className="mt-3 font-semibold">Roles could not be loaded</p>
-          <p className="mt-1 text-sm text-secondary">
-            Check the API connection and try again.
-          </p>
-          <Button variant="secondary" className="mt-5" onClick={() => query.refetch()}>
-            Try again
-          </Button>
-        </div>
+      ) : query.isError && query.data === undefined ? (
+        <ErrorState
+          title="Roles could not be loaded"
+          error={query.error}
+          onRetry={() => query.refetch()}
+        />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {query.data.items.map((role) => {
