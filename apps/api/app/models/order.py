@@ -287,6 +287,10 @@ class Payment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class DeliveryAgent(UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
     __tablename__ = "delivery_agents"
+    # Fetch SQL-generated timestamps with RETURNING on updates as well as inserts.
+    # Otherwise serializing an edit/proof upload tries to lazy-load updated_at
+    # outside async SQLAlchemy's await context after the write has committed.
+    __mapper_args__ = {"eager_defaults": True}
 
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     phone: Mapped[str] = mapped_column(String(50), nullable=False)

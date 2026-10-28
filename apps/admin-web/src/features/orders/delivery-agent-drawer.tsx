@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -19,7 +19,7 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { saveDeliveryAgent, uploadDeliveryAgentProof } from "@/features/orders/orders-api";
 import type { DeliveryAgent, VehicleType } from "@/features/orders/orders.data";
-import { getApiErrorDetail } from "@/lib/api-errors";
+import { describeApiFailure } from "@/lib/api-errors";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Enter the agent's name."),
@@ -40,6 +40,8 @@ export function DeliveryAgentDrawer({
 }) {
   const [open, setOpen] = useState(false);
   const [proof, setProof] = useState<File | null>(null);
+  const [savedAgentId, setSavedAgentId] = useState<string | undefined>(agent?.id);
+  const [proofError, setProofError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -56,34 +58,57 @@ export function DeliveryAgentDrawer({
     mutationFn: async (values: Values) => {
       const saved = await saveDeliveryAgent(
         { ...values, email: values.email || null, address: values.address || null },
-        agent?.id,
+        savedAgentId,
       );
-      return proof ? uploadDeliveryAgentProof(saved.id, proof) : saved;
+      // Creation and proof upload are separate writes. Retain the successful ID
+      // so retrying a failed upload updates this agent instead of creating another.
+      setSavedAgentId(saved.id);
+      if (proof) {
+        try {
+          await uploadDeliveryAgentProof(saved.id, proof);
+        } catch (error) {
+          return { proofError: describeApiFailure(error).message };
+        }
+      }
+      return { proofError: null };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["delivery-agents"] });
+      setProofError(result.proofError);
+      if (result.proofError) {
+        toast.warning("Agent saved, but identity proof was not uploaded", {
+          description: "Retry with the same file or choose a replacement below.",
+        });
+        return;
+      }
       toast.success(agent ? "Delivery agent updated" : "Delivery agent created");
       setOpen(false);
       setProof(null);
     },
     onError: (error) =>
       toast.error("Delivery agent could not be saved", {
-        description: getApiErrorDetail(error),
+        description: describeApiFailure(error).message,
       }),
   });
-  useEffect(() => {
-    if (!open) return;
-    form.reset({
-      name: agent?.name ?? "",
-      phone: agent?.phone ?? "",
-      email: agent?.email ?? "",
-      address: agent?.address ?? "",
-      vehicle_type: agent?.vehicle_type ?? "MOTORCYCLE",
-      is_active: agent?.is_active ?? true,
-    });
-  }, [agent, form, open]);
+  function changeOpen(nextOpen: boolean) {
+    if (save.isPending) return;
+    if (nextOpen) {
+      form.reset({
+        name: agent?.name ?? "",
+        phone: agent?.phone ?? "",
+        email: agent?.email ?? "",
+        address: agent?.address ?? "",
+        vehicle_type: agent?.vehicle_type ?? "MOTORCYCLE",
+        is_active: agent?.is_active ?? true,
+      });
+      setSavedAgentId(agent?.id);
+      setProof(null);
+      setProofError(null);
+    }
+    setOpen(nextOpen);
+  }
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer open={open} onOpenChange={changeOpen}>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
       <DrawerContent className="max-w-[540px]">
         <DrawerHeader>
@@ -102,7 +127,25 @@ export function DeliveryAgentDrawer({
           noValidate
           onSubmit={form.handleSubmit((values) => save.mutate(values))}
         >
-          <div className="grid gap-4 px-6 py-6 sm:grid-cols-2">
+          <fieldset
+            disabled={save.isPending}
+            className="grid gap-4 px-6 py-6 sm:grid-cols-2"
+          >
+            {proofError && (
+              <div
+                role="alert"
+                className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 sm:col-span-2"
+              >
+                <p className="font-semibold">
+                  Agent saved. Identity proof needs attention.
+                </p>
+                <p className="mt-1">{proofError}</p>
+                <p className="mt-1">
+                  Retry the upload below, choose another file, or close this form and upload
+                  it later from Edit. Your agent details are already saved.
+                </p>
+              </div>
+            )}
             <FormField
               label="Name"
               htmlFor="agent-name"
@@ -176,13 +219,22 @@ export function DeliveryAgentDrawer({
                 onChange={(event) => setProof(event.target.files?.[0] ?? null)}
               />
             </FormField>
-          </div>
+          </fieldset>
           <DrawerFooter>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={save.isPending}
+              onClick={() => changeOpen(false)}
+            >
+              {proofError ? "Close" : "Cancel"}
             </Button>
             <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save agent"}
+              {save.isPending
+                ? "Saving…"
+                : proofError
+                  ? "Retry save & upload"
+                  : "Save agent"}
             </Button>
           </DrawerFooter>
         </form>
