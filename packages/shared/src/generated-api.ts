@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin Notifications */
+        get: operations["list_admin_notifications_api_v1_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/opened": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Admin Notifications */
+        post: operations["open_admin_notifications_api_v1_notifications_opened_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -2729,7 +2763,7 @@ export interface paths {
         patch: operations["update_content_api_v1_storefront__kind___content_id__patch"];
         trace?: never;
     };
-    "/health": {
+    "/health/live": {
         parameters: {
             query?: never;
             header?: never;
@@ -2737,7 +2771,24 @@ export interface paths {
             cookie?: never;
         };
         /** Liveness */
-        get: operations["liveness_health_get"];
+        get: operations["liveness_health_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Database Health */
+        get: operations["database_health_health_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2798,6 +2849,55 @@ export interface components {
             contact_person: string | null;
             /** Is Default */
             is_default: boolean;
+        };
+        /** AdminNotificationFeed */
+        AdminNotificationFeed: {
+            /** Items */
+            items: components["schemas"]["AdminNotificationRead"][];
+            /** Unread Count */
+            unread_count: number;
+            /** Opened Through */
+            opened_through: string | null;
+            /**
+             * Snapshot At
+             * Format: date-time
+             */
+            snapshot_at: string;
+            /** Next Before At */
+            next_before_at?: string | null;
+            /** Next Before Id */
+            next_before_id?: string | null;
+        };
+        /** AdminNotificationOpened */
+        AdminNotificationOpened: {
+            /**
+             * Through
+             * Format: date-time
+             */
+            through: string;
+        };
+        /** AdminNotificationRead */
+        AdminNotificationRead: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "order" | "customer" | "payment" | "delivery" | "product" | "inventory";
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Href */
+            href: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is New */
+            is_new: boolean;
         };
         /** AdminUserCreate */
         AdminUserCreate: {
@@ -6349,6 +6449,71 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_admin_notifications_api_v1_notifications_get: {
+        parameters: {
+            query?: {
+                before_at?: string | null;
+                before_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminNotificationFeed"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_admin_notifications_api_v1_notifications_opened_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminNotificationOpened"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminNotificationOpened"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -9151,6 +9316,7 @@ export interface operations {
                 warehouse_id?: string | null;
                 batch_status?: components["schemas"]["BatchStatus"] | null;
                 expiring_before?: string | null;
+                expiring_only?: boolean;
             };
             header?: never;
             path?: never;
@@ -9218,6 +9384,7 @@ export interface operations {
                 warehouse_id?: string | null;
                 batch_status?: components["schemas"]["BatchStatus"] | null;
                 expiring_before?: string | null;
+                expiring_only?: boolean;
                 stock?: string | null;
                 ids?: string[] | null;
             };
@@ -9545,6 +9712,7 @@ export interface operations {
                 warehouse_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
+                committed_only?: boolean;
             };
             header?: never;
             path?: never;
@@ -9615,6 +9783,7 @@ export interface operations {
                 warehouse_id?: string | null;
                 date_from?: string | null;
                 date_to?: string | null;
+                committed_only?: boolean;
                 ids?: string[] | null;
             };
             header?: never;
@@ -12928,7 +13097,27 @@ export interface operations {
             };
         };
     };
-    liveness_health_get: {
+    liveness_health_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LivenessResponse"];
+                };
+            };
+        };
+    };
+    database_health_health_get: {
         parameters: {
             query?: never;
             header?: never;

@@ -1,5 +1,5 @@
 from app.models.audit import AuditLog
-from app.models.auth import AdminUser, Permission, Role, RolePermission
+from app.models.auth import AdminNotificationState, AdminUser, Permission, Role, RolePermission
 from app.models.catalog import (
     BatchStatus,
     Brand,
@@ -49,6 +49,7 @@ from app.models.order import (
 )
 
 __all__ = [
+    "AdminNotificationState",
     "AdminUser",
     "AuditLog",
     "BatchStatus",

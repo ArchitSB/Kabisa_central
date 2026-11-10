@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   keepPreviousData,
   useMutation,
@@ -64,7 +64,16 @@ export function InventoryPage() {
   const [batchStatus, setBatchStatus] = useState(
     () => searchParams.get("batch_status") || "",
   );
-  const [expiringOnly] = useState(() => searchParams.get("expiring_only") === "true");
+  const [expiringOnly, setExpiringOnly] = useState(
+    () => searchParams.get("expiring_only") === "true",
+  );
+  useEffect(() => {
+    setWarehouseId(searchParams.get("warehouse_id") || "");
+    setSearch(searchParams.get("search") || "");
+    setStock(searchParams.get("stock") || "");
+    setBatchStatus(searchParams.get("batch_status") || "");
+    setExpiringOnly(searchParams.get("expiring_only") === "true");
+  }, [searchParams]);
   const [selected, setSelected] = useState<ProductBatch[]>([]);
   const [deleting, setDeleting] = useState<ProductBatch | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);

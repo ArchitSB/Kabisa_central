@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from app.api.v1.routes.admin_notifications import router as admin_notifications_router
 from app.api.v1.routes.admin_users import router as admin_users_router
 from app.api.v1.routes.audit import router as audit_router
 from app.api.v1.routes.auth import router as auth_router
@@ -28,6 +29,9 @@ from app.api.v1.routes.warehouses import router as warehouses_router
 from app.services.audit_service import audit_request
 
 api_router = APIRouter(dependencies=[Depends(audit_request)])
+api_router.include_router(
+    admin_notifications_router, prefix="/notifications", tags=["staff notifications"]
+)
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(
     admin_users_router,

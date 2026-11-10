@@ -13,6 +13,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { copy } from "@/lib/copy";
 import { useUiStore } from "@/lib/ui-store";
 import { getInitials } from "@/lib/utils";
+import { NotificationBell } from "@/features/notifications/notification-bell";
 
 export function AppLayout({ children }: { children?: ReactNode }) {
   const location = useLocation();
@@ -137,6 +138,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           </div>
           <WorkspaceSearch />
           <div className="ops-topbar-actions">
+            <NotificationBell />
             <ConnectivityIndicator />
             <RoleSwitcher />
             <span className="ops-access-label">

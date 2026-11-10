@@ -111,3 +111,14 @@ class AdminUser(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
 
     role: Mapped[Role] = relationship(back_populates="users", lazy="joined")
+
+
+class AdminNotificationState(Base):
+    """Inbox watermark shared across one staff member's devices, never across accounts."""
+
+    __tablename__ = "admin_notification_states"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("admin_users.id", ondelete="CASCADE"), primary_key=True
+    )
+    opened_through: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

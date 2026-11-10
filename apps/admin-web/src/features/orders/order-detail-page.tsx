@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -10,7 +11,7 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,9 @@ import { formatMoney } from "@/lib/utils";
 
 export function OrderDetailPage() {
   const { orderId = "" } = useParams();
+  const location = useLocation();
+  const reducedMotion = useReducedMotion();
+  const focusedLocation = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
@@ -129,6 +133,21 @@ export function OrderDetailPage() {
         description: getApiErrorDetail(error),
       }),
   });
+
+  useEffect(() => {
+    if (!order.data || focusedLocation.current === location.key) return;
+    const id = location.hash.slice(1);
+    if (id !== "payments" && id !== "delivery") return;
+    const target = document.getElementById(id);
+    if (target) {
+      focusedLocation.current = location.key;
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({
+        behavior: reducedMotion ? "instant" : "smooth",
+        block: "start",
+      });
+    }
+  }, [order.data, location.key, location.hash, reducedMotion]);
 
   if (order.isPending) return <LoadingState label="Loading order…" />;
   if ((order.isError && order.data === undefined) || !order.data)
@@ -283,7 +302,11 @@ export function OrderDetailPage() {
       </section>
 
       <div className="space-y-6">
-        <section className="rounded-card border border-border bg-surface p-5 shadow-card">
+        <section
+          id="delivery"
+          tabIndex={-1}
+          className="scroll-mt-24 rounded-card border border-border bg-surface p-5 shadow-card focus-visible:ring-2 focus-visible:ring-primary-300"
+        >
           <div className="mb-5 flex items-center gap-2">
             <Truck className="size-5 text-primary-700" aria-hidden="true" />
             <h2 className="font-display text-xl font-semibold">
@@ -395,7 +418,11 @@ export function OrderDetailPage() {
           ) : null}
         </section>
 
-        <section className="rounded-card border border-border bg-surface p-5 shadow-card">
+        <section
+          id="payments"
+          tabIndex={-1}
+          className="scroll-mt-24 rounded-card border border-border bg-surface p-5 shadow-card focus-visible:ring-2 focus-visible:ring-primary-300"
+        >
           <div className="mb-5 flex items-center gap-2">
             <CreditCard className="size-5 text-primary-700" aria-hidden="true" />
             <h2 className="font-display text-xl font-semibold">3. Payment verification</h2>

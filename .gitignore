@@ -30,3 +30,7 @@ apps/admin-web/vite.config.d.ts
 backups/
 apps/mobile/android/
 apps/mobile/ios/
+
+graphify-out/
+backups/
+

@@ -6,6 +6,124 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "staff notifications"
+        ],
+        "summary": "List Admin Notifications",
+        "operationId": "list_admin_notifications_api_v1_notifications_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "before_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before At"
+            }
+          },
+          {
+            "name": "before_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminNotificationFeed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/opened": {
+      "post": {
+        "tags": [
+          "staff notifications"
+        ],
+        "summary": "Open Admin Notifications",
+        "operationId": "open_admin_notifications_api_v1_notifications_opened_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminNotificationOpened"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminNotificationOpened"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -5458,6 +5576,16 @@
               ],
               "title": "Expiring Before"
             }
+          },
+          {
+            "name": "expiring_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Expiring Only"
+            }
           }
         ],
         "responses": {
@@ -5606,6 +5734,16 @@
                 }
               ],
               "title": "Expiring Before"
+            }
+          },
+          {
+            "name": "expiring_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Expiring Only"
             }
           },
           {
@@ -6398,6 +6536,16 @@
               ],
               "title": "Date To"
             }
+          },
+          {
+            "name": "committed_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Committed Only"
+            }
           }
         ],
         "responses": {
@@ -6596,6 +6744,16 @@
                 }
               ],
               "title": "Date To"
+            }
+          },
+          {
+            "name": "committed_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Committed Only"
             }
           },
           {
@@ -11466,7 +11624,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/store/orders/{order_id}/invoice": {
@@ -12103,13 +12266,34 @@
         }
       }
     },
-    "/health": {
+    "/health/live": {
       "get": {
         "tags": [
           "health"
         ],
         "summary": "Liveness",
-        "operationId": "liveness_health_get",
+        "operationId": "liveness_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Database Health",
+        "operationId": "database_health_health_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -12269,6 +12453,135 @@
           "is_default"
         ],
         "title": "AddressRead"
+      },
+      "AdminNotificationFeed": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminNotificationRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          },
+          "opened_through": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened Through"
+          },
+          "snapshot_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Snapshot At"
+          },
+          "next_before_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before At"
+          },
+          "next_before_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "unread_count",
+          "opened_through",
+          "snapshot_at"
+        ],
+        "title": "AdminNotificationFeed"
+      },
+      "AdminNotificationOpened": {
+        "properties": {
+          "through": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Through"
+          }
+        },
+        "type": "object",
+        "required": [
+          "through"
+        ],
+        "title": "AdminNotificationOpened"
+      },
+      "AdminNotificationRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "order",
+              "customer",
+              "payment",
+              "delivery",
+              "product",
+              "inventory"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "description",
+          "href",
+          "created_at",
+          "is_new"
+        ],
+        "title": "AdminNotificationRead"
       },
       "AdminUserCreate": {
         "properties": {

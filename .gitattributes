@@ -1,3 +1,4 @@
 # Preserve third-party skill assets byte-for-byte without applying repository
 # whitespace policy to their upstream CRLF and formatting conventions.
 /.codex/skills/** -whitespace
+graphify-out/graph.json merge=graphify
