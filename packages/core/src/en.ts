@@ -107,9 +107,9 @@ export const en: Record<string, string> = {
   "catalog.of": "of",
   "product.priceHidden": "Sign in for your price",
   "product.priceUnavailable": "Price not available",
-  "product.pom": "Prescription required",
+  "product.pom": "Prescription-only medicine",
   "product.pomBody":
-    "An authorised prescription or purchase document is required at checkout.",
+    "For verified healthcare businesses. Purchase authorisation is optional at checkout.",
   "product.registration": "TMDA registration",
   "product.details": "Product details",
   "product.description": "About this product",
@@ -183,7 +183,11 @@ export const en: Record<string, string> = {
   "checkout.manual":
     "Our team will confirm payment instructions. Your balance updates when payment is recorded.",
   "checkout.coupon": "Coupon code (optional)",
-  "checkout.prescription": "Prescription / purchase authorisation",
+  "checkout.prescription": "Purchase authorisation (optional)",
+  "checkout.authorisationHint":
+    "Attach your business purchase authorisation if needed. You can place your order without a document.",
+  "checkout.uploading": "Uploading document…",
+  "checkout.removeDocument": "Remove document",
   "checkout.upload": "Upload PDF, JPEG or PNG · maximum 10 MB",
   "checkout.review": "Review final quote",
   "checkout.place": "Place order",

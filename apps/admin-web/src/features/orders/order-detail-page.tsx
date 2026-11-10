@@ -97,8 +97,8 @@ export function OrderDetailPage() {
       recordPayment(orderId, {
         amount: Number(paymentAmount),
         method: paymentMethod,
-        provider: provider || null,
-        transaction_ref: transactionRef || null,
+        provider: paymentMethod === "CASH" ? null : provider || null,
+        transaction_ref: paymentMethod === "CASH" ? null : transactionRef || null,
         status: "COLLECTED",
       }),
     onSuccess: async () => {
@@ -473,9 +473,14 @@ export function OrderDetailPage() {
                   id="payment-method"
                   className="control-base w-full"
                   value={paymentMethod}
-                  onChange={(event) =>
-                    setPaymentMethod(event.target.value as PaymentMethod)
-                  }
+                  onChange={(event) => {
+                    const method = event.target.value as PaymentMethod;
+                    setPaymentMethod(method);
+                    if (method === "CASH") {
+                      setTransactionRef("");
+                      setProvider("");
+                    }
+                  }}
                 >
                   <option value="CASH">Cash</option>
                   <option value="MOBILE_MONEY">Mobile money</option>
@@ -493,13 +498,15 @@ export function OrderDetailPage() {
                   />
                 </FormField>
               ) : null}
-              <FormField label="Transaction reference" htmlFor="payment-ref">
-                <Input
-                  id="payment-ref"
-                  value={transactionRef}
-                  onChange={(event) => setTransactionRef(event.target.value)}
-                />
-              </FormField>
+              {paymentMethod !== "CASH" ? (
+                <FormField label="Transaction reference" htmlFor="payment-ref">
+                  <Input
+                    id="payment-ref"
+                    value={transactionRef}
+                    onChange={(event) => setTransactionRef(event.target.value)}
+                  />
+                </FormField>
+              ) : null}
               <div className="sm:col-span-2">
                 <Button
                   disabled={!amountValid || payment.isPending}

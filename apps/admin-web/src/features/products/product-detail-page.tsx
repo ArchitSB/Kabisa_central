@@ -9,6 +9,7 @@ import {
   Edit3,
   PackageCheck,
   ShieldCheck,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import {
 } from "@/features/catalog/catalog-api";
 import type { ProductDetail } from "@/features/catalog/types";
 import { ProductDrawer } from "@/features/products/product-drawer";
+import { AdjustBatchDrawer } from "@/features/inventory/batch-drawers";
 import {
   PrescriptionBadge,
   ProductPlaceholder,
@@ -48,6 +50,7 @@ export function ProductDetailPage() {
   const { productId = "" } = useParams();
   const canEdit = useHasPermission("products.edit");
   const canVerify = useHasPermission("products.verify");
+  const canAdjust = useHasPermission("inventory.adjust");
   const queryClient = useQueryClient();
   const product = useQuery({
     queryKey: ["product", productId],
@@ -139,8 +142,27 @@ export function ProductDetailPage() {
           />
         ),
       },
+      ...(canAdjust
+        ? [
+            {
+              id: "adjust",
+              header: "Stock control",
+              cell: ({ row }) => (
+                <AdjustBatchDrawer
+                  batch={{ ...row.original, product_name: product.data?.name ?? "" }}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <SlidersHorizontal aria-hidden="true" />
+                      Adjust quantity
+                    </Button>
+                  }
+                />
+              ),
+            } satisfies ColumnDef<ProductDetail["batches"][number]>,
+          ]
+        : []),
     ],
-    [],
+    [canAdjust, product.data?.name],
   );
   if (product.isPending) return <LoadingState label="Loading product…" />;
   if ((product.isError && product.data === undefined) || !product.data)
@@ -312,6 +334,8 @@ export function ProductDetailPage() {
           <h2 className="font-display text-xl font-semibold">Batches</h2>
           <p className="mt-1 text-sm text-secondary">
             FEFO order; expired batches are excluded from on-hand totals.
+            {canAdjust &&
+              " Adjust the relevant warehouse batch for damage, expiry or stock-count corrections; a reason is required."}
           </p>
         </div>
         <DataTable

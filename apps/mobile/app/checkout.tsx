@@ -88,7 +88,6 @@ function CheckoutForm() {
     (config?.settings.require_verification_to_order &&
       customer?.customer.status !== "VERIFIED") ||
     ["SUSPENDED", "REJECTED"].includes(customer?.customer.status || "");
-  const pom = cart.items.some((i) => i.product.requires_prescription);
   return (
     <Screen title={t("checkout.title")} body={t("checkout.subtitle")}>
       {blocked ? (
@@ -172,20 +171,19 @@ function CheckoutForm() {
             ))}
             <Txt muted>{t("checkout.manual")}</Txt>
           </Panel>
-          {pom && (
-            <Panel>
-              <Heading>{t("checkout.prescription")}</Heading>
-              <Action
-                label={document ? t("action.saved") : t("checkout.upload")}
-                secondary
-                icon="document-attach-outline"
-                onPress={async () => {
-                  const result = await pickUpload("/prescriptions");
-                  if (result) setDocument(result.id);
-                }}
-              />
-            </Panel>
-          )}
+          <Panel>
+            <Heading>{t("checkout.prescription")}</Heading>
+            <Txt muted>{t("checkout.authorisationHint")}</Txt>
+            <Action
+              label={document ? t("action.saved") : t("checkout.upload")}
+              secondary
+              icon="document-attach-outline"
+              onPress={async () => {
+                const result = await pickUpload("/prescriptions");
+                if (result) setDocument(result.id);
+              }}
+            />
+          </Panel>
           <Panel>
             <Heading>{t("cart.summary")}</Heading>
             {cart.items.map((i) => (
@@ -219,7 +217,7 @@ function CheckoutForm() {
               </>
             )}
             <Action
-              disabled={!address || (pom && !document)}
+              disabled={!address}
               label={t(quote ? "checkout.place" : "checkout.review")}
               onPress={async () => {
                 if (!quote) {

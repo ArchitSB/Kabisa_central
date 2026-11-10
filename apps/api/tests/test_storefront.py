@@ -478,28 +478,72 @@ async def test_private_uploads_signature_and_ownership(api_client, store_data):
     assert missing.status_code == 404
 
 
-async def test_pom_order_requires_owned_document(api_client, store_data, test_session_factory):
+@pytest.mark.parametrize("requires_prescription", [False, True])
+@pytest.mark.parametrize("attach_document", [False, True])
+async def test_b2b_order_optional_purchase_authorisation(
+    api_client, store_data, test_session_factory, requires_prescription, attach_document
+):
     async with test_session_factory() as session:
-        await session.execute(update(Product).values(requires_prescription=True))
-        row = PrescriptionUpload(
-            customer_id=store_data["customer1"],
+        await session.execute(update(Product).values(requires_prescription=requires_prescription))
+        document = PrescriptionUpload(
+            customer_id=store_data["customer0"],
+            file_path="authorisation.pdf",
+            original_filename="authorisation.pdf",
+        )
+        session.add(document)
+        await session.commit()
+        document_id = document.id
+    await put_cart(api_client, store_data)
+    payload = checkout(store_data)
+    if attach_document:
+        payload["prescription_id"] = str(document_id)
+    quote = await api_client.post(
+        "/api/v1/store/checkout/quote", headers=headers(store_data), json=payload
+    )
+    assert quote.status_code == 200, quote.text
+    placed = await api_client.post(
+        "/api/v1/store/orders",
+        headers={**headers(store_data), "Idempotency-Key": "b2b-optional-document"},
+        json=payload,
+    )
+    assert placed.status_code == 201, placed.text
+    async with test_session_factory() as session:
+        document = await session.get(PrescriptionUpload, document_id)
+        assert document.order_id == (UUID(placed.json()["id"]) if attach_document else None)
+    if attach_document:
+        await put_cart(api_client, store_data)
+        reused = await api_client.post(
+            "/api/v1/store/orders",
+            headers={**headers(store_data), "Idempotency-Key": "b2b-reused-document"},
+            json=payload,
+        )
+        assert reused.status_code == 422
+        assert reused.json()["code"] == "invalid_prescription"
+
+
+@pytest.mark.parametrize("invalid", ["another_customer", "rejected", "missing"])
+async def test_optional_authorisation_still_validated(
+    api_client, store_data, test_session_factory, invalid
+):
+    async with test_session_factory() as session:
+        document = PrescriptionUpload(
+            customer_id=store_data["customer1" if invalid == "another_customer" else "customer0"],
             file_path="private.pdf",
             original_filename="private.pdf",
+            status="REJECTED" if invalid == "rejected" else "PENDING",
         )
-        session.add(row)
+        session.add(document)
         await session.commit()
-        prescription = str(row.id)
+        document_id = uuid4() if invalid == "missing" else document.id
     await put_cart(api_client, store_data)
-    r = await api_client.post(
-        "/api/v1/store/checkout/quote", headers=headers(store_data), json=checkout(store_data)
-    )
-    assert r.status_code == 422 and r.json()["code"] == "prescription_required"
-    r = await api_client.post(
-        "/api/v1/store/checkout/quote",
-        headers=headers(store_data),
-        json={**checkout(store_data), "prescription_id": prescription},
-    )
-    assert r.status_code == 422
+    for path in ("/checkout/quote", "/orders"):
+        result = await api_client.post(
+            "/api/v1/store" + path,
+            headers={**headers(store_data), "Idempotency-Key": "invalid-optional-document"},
+            json={**checkout(store_data), "prescription_id": str(document_id)},
+        )
+        assert result.status_code == 422, result.text
+        assert result.json()["code"] == "invalid_prescription"
 
 
 async def test_content_publication_and_maintenance(api_client, store_data, test_session_factory):

@@ -362,7 +362,7 @@ export function ProductDrawer({
                       {
                         name: "requires_prescription",
                         label: "Prescription (POM)",
-                        hint: "Requires a valid prescription.",
+                        hint: "Medicine classification; B2B purchase authorisation is optional.",
                       },
                       {
                         name: "is_active",

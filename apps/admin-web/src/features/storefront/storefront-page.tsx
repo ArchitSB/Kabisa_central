@@ -70,7 +70,7 @@ const labels: Record<Kind, string> = {
   testimonials: "Testimonials",
   menus: "Navigation",
   settings: "Storefront settings",
-  prescriptions: "Prescriptions",
+  prescriptions: "Purchase authorisations",
 };
 const fields: Record<string, FormField[]> = {
   banners: [

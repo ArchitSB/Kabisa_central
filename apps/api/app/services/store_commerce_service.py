@@ -221,15 +221,14 @@ async def checkout_quote(session, user, payload):
         if not prescription:
             raise AppError(
                 status_code=422,
-                detail="Upload a valid prescription for this order.",
+                detail=(
+                    "Choose a valid purchase authorisation for this order, "
+                    "or remove the attachment."
+                ),
                 code="invalid_prescription",
             )
-    if any(p.requires_prescription for p in allowed) and not prescription:
-        raise AppError(
-            status_code=422,
-            detail="This basket requires a prescription or authorised purchase document.",
-            code="prescription_required",
-        )
+    # B2B purchase authorisations are optional, including prescription-classified products.
+    # Keep ownership and reuse checks above when a customer elects to attach a document.
     warehouse = await primary_warehouse(session)
     create = OrderCreate(
         customer_id=customer.id,

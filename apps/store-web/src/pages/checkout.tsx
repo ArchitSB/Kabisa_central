@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -42,7 +42,9 @@ export default function Checkout() {
   const [notes, setNotes] = useState("");
   const [method, setMethod] = useState("CASH");
   const [coupon, setCoupon] = useState("");
-  const [prescription, setPrescription] = useState("");
+  const [authorisation, setAuthorisation] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState("");
@@ -65,17 +67,14 @@ export default function Checkout() {
   }, [address, addresses.data]);
   useEffect(() => {
     setQuote(null);
-  }, [address, notes, method, coupon, prescription, cart.subtotal]);
+  }, [address, notes, method, coupon, authorisation, cart.subtotal]);
   const payload = {
     address_id: address,
     notes: notes || null,
     payment_method: method,
     coupon_code: coupon.trim() || null,
-    prescription_id: prescription || null,
+    prescription_id: authorisation || null,
   };
-  const requiresPrescription = cart.items.some(
-    (i) => i.product.requires_prescription,
-  );
   const gated =
     (customer?.customer.status !== "VERIFIED" &&
       config?.settings.require_verification_to_order) ||
@@ -223,46 +222,70 @@ export default function Checkout() {
               </div>
               <p className="muted small">{t("checkout.manual")}</p>
             </section>
-            {requiresPrescription && (
-              <section className="panel">
-                <h2>
-                  <FileCheck2 size={21} />
-                  {t("checkout.prescription")}
-                </h2>
-                <Field label={t("checkout.upload")}>
-                  <input
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
+            <section className="panel">
+              <h2>
+                <FileCheck2 size={21} />
+                {t("checkout.prescription")}
+              </h2>
+              <p className="muted small">{t("checkout.authorisationHint")}</p>
+              <Field label={t("checkout.upload")}>
+                <input
+                  ref={fileInput}
+                  disabled={uploading}
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setError("");
+                    setAuthorisation("");
+                    setFileName("");
+                    setQuote(null);
+                    if (file.size > 10 * 1024 * 1024) {
+                      setError(t("checkout.upload"));
+                      e.target.value = "";
+                      return;
+                    }
+                    setUploading(true);
+                    try {
+                      const form = new FormData();
+                      form.append("file", file);
+                      const result = await upload<{ id: string }>(
+                        "/prescriptions",
+                        form,
+                      );
+                      setAuthorisation(result.id);
+                      setFileName(file.name);
+                    } catch (e) {
+                      setError(
+                        e instanceof Error ? e.message : t("error.unexpected"),
+                      );
+                      if (fileInput.current) fileInput.current.value = "";
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                />
+              </Field>
+              {uploading && <p role="status">{t("checkout.uploading")}</p>}
+              {fileName && (
+                <div>
+                  <p className="success-text">{fileName}</p>
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => {
+                      setAuthorisation("");
+                      setFileName("");
                       setError("");
-                      if (file.size > 10 * 1024 * 1024) {
-                        setError(t("checkout.upload"));
-                        return;
-                      }
-                      try {
-                        const form = new FormData();
-                        form.append("file", file);
-                        const result = await upload<{ id: string }>(
-                          "/prescriptions",
-                          form,
-                        );
-                        setPrescription(result.id);
-                        setFileName(file.name);
-                      } catch (e) {
-                        setError(
-                          e instanceof Error
-                            ? e.message
-                            : t("error.unexpected"),
-                        );
-                      }
+                      if (fileInput.current) fileInput.current.value = "";
                     }}
-                  />
-                </Field>
-                {fileName && <p className="success-text">{fileName}</p>}
-              </section>
-            )}
+                  >
+                    {t("checkout.removeDocument")}
+                  </button>
+                </div>
+              )}
+            </section>
           </div>
           <aside className="order-summary panel">
             <h2>{quote ? t("checkout.quoted") : t("cart.summary")}</h2>
@@ -320,7 +343,11 @@ export default function Checkout() {
             {quote ? (
               <>
                 <p className="muted small">{t("checkout.accept")}</p>
-                <AsyncButton className="btn full" action={place}>
+                <AsyncButton
+                  className="btn full"
+                  action={place}
+                  disabled={uploading}
+                >
                   {t("checkout.place")}
                   <ArrowRight size={17} />
                 </AsyncButton>
@@ -329,7 +356,7 @@ export default function Checkout() {
               <AsyncButton
                 className="btn full"
                 action={review}
-                disabled={!address || (requiresPrescription && !prescription)}
+                disabled={!address || uploading}
               >
                 {t("checkout.review")}
                 <ArrowRight size={17} />

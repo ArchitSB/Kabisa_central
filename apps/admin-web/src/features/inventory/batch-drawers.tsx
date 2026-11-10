@@ -263,7 +263,15 @@ export function AdjustBatchDrawer({
   batch,
 }: {
   trigger: React.ReactNode;
-  batch: ProductBatch;
+  batch: Pick<
+    ProductBatch,
+    | "id"
+    | "product_name"
+    | "warehouse_name"
+    | "batch_number"
+    | "quantity_available"
+    | "quantity_reserved"
+  >;
 }) {
   const [open, setOpen] = useState(false);
   const refresh = useInventoryRefresh();
@@ -294,7 +302,7 @@ export function AdjustBatchDrawer({
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-primary-700">
             Stock control
           </p>
-          <DrawerTitle>Adjust batch</DrawerTitle>
+          <DrawerTitle>Adjust quantity</DrawerTitle>
           <DrawerDescription>
             {batch.product_name} · {batch.warehouse_name} · {batch.batch_number}
           </DrawerDescription>
@@ -317,10 +325,10 @@ export function AdjustBatchDrawer({
               </p>
             </div>
             <FormField
-              label="Adjustment delta"
+              label="Quantity change"
               htmlFor={`adjust-delta-${batch.id}`}
               error={form.formState.errors.delta?.message}
-              hint="Positive adds stock; negative removes stock. Available stock can never fall below reserved stock."
+              hint="Enter −5 to remove five units, or 5 to add five. Available stock cannot fall below reserved stock."
             >
               <Input
                 id={`adjust-delta-${batch.id}`}
@@ -337,6 +345,7 @@ export function AdjustBatchDrawer({
               <textarea
                 id={`adjust-note-${batch.id}`}
                 rows={4}
+                placeholder="For example: 5 damaged units removed after a warehouse count."
                 className="control-base h-auto w-full py-3"
                 {...form.register("note")}
               />
