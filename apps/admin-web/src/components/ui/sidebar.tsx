@@ -35,8 +35,8 @@ export function Sidebar({
           className="ops-logo"
         >
           <img
-            src="/images/kabisa-logo.png"
-            alt="Kabisa — One step for millions"
+            src="/images/kabisa-logo-medicare.png"
+            alt="Kabisa — One step for medicare"
             width="150"
             height="68"
           />

@@ -141,7 +141,7 @@ export default function Auth() {
           alt="Illustrative Tanzanian pharmacist portrait"
         />
         <div className="auth-story-copy">
-          <p className="eyebrow">ONE STEP FOR MILLIONS</p>
+          <p className="eyebrow">ONE STEP FOR MEDICARE</p>
           <h2>
             A better day
             <br />

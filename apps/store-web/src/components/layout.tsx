@@ -35,10 +35,10 @@ export function Brand() {
   return (
     <Link to="/" className="brand" aria-label="Kabisa — home">
       <img
-        src="/images/kabisa-logo.png"
+        src="/images/kabisa-logo-medicare.png"
         width="176"
         height="80"
-        alt="Kabisa — One step for millions"
+        alt="Kabisa — One step for medicare"
       />
     </Link>
   );
@@ -312,7 +312,7 @@ export function Layout() {
               <p>
                 {String(
                   cfg?.footer_description ||
-                    "One step for millions. Connecting the people who care with the supplies they need.",
+                    "One step for medicare. Connecting the people who care with the supplies they need.",
                 )}
               </p>
               <span className="footer-location">

@@ -67,7 +67,7 @@ export default function Home() {
     queryFn: () => api.get<Page<StoreOrder>>("/orders?page_size=3"),
     enabled: approved,
   });
-  useSeo("One step for millions");
+  useSeo("One step for medicare");
   if (authenticated && customer && !approved)
     return <Navigate to="/account/verification" replace />;
   if (query.isError && query.data === undefined)
@@ -177,7 +177,7 @@ export default function Home() {
                   <br />
                   there’s someone who cares.
                 </strong>
-                <span>ONE STEP FOR MILLIONS</span>
+                <span>ONE STEP FOR MEDICARE</span>
               </div>
             </div>
             <span className="photo-credit">Illustrative image</span>

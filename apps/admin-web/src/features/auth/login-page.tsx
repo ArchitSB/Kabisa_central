@@ -138,8 +138,8 @@ export function LoginPage() {
       <section className="ops-login-story">
         <div className="ops-login-brand">
           <img
-            src="/images/kabisa-logo.png"
-            alt="Kabisa — One step for millions"
+            src="/images/kabisa-logo-medicare.png"
+            alt="Kabisa — One step for medicare"
             width="176"
             height="80"
           />
@@ -176,7 +176,7 @@ export function LoginPage() {
           </div>
         </div>
         <div className="ops-login-footnote">
-          <span>One step for millions.</span>
+          <span>One step for medicare.</span>
           <span>Dar es Salaam · Tanzania</span>
         </div>
       </section>
@@ -193,7 +193,7 @@ export function LoginPage() {
         >
           <img
             className="ops-login-mobile-logo"
-            src="/images/kabisa-logo.png"
+            src="/images/kabisa-logo-medicare.png"
             alt="Kabisa"
             width="160"
             height="73"
